@@ -15,8 +15,8 @@ import cdp4s.domain.event.Event
 import cdp4s.ws.WsUri
 import fs2.Pipe
 import fs2.Stream
-import fs2.async.mutable.Queue
-import fs2.async.mutable.Topic
+import fs2.concurrent.Queue
+import fs2.concurrent.Topic
 import io.circe.Decoder
 import io.circe.Json
 import io.circe.JsonObject
@@ -34,8 +34,8 @@ object ChromeWebSocketClient {
   )(implicit F: Concurrent[F]): F[ChromeWebSocketClient[F]] = {
 
     val initialize = for {
-      requestQ <- fs2.async.boundedQueue[F, ChromeRequest](requestQueueSize)
-      eventTopic <- fs2.async.topic[F, Option[Event]](None)
+      requestQ <- Queue.bounded[F, ChromeRequest](requestQueueSize)
+      eventTopic <- Topic[F, Option[Event]](None)
     } yield (requestQ, eventTopic)
 
     initialize.map { case (requestQ, eventTopic) =>
@@ -122,7 +122,7 @@ class ChromeWebSocketClient[F[_]](
 
   def runCommand[T : Decoder](method: String, params: JsonObject): F[T] = for {
     id <- F.delay { sequence.incrementAndGet() }
-    callback <- fs2.async.synchronousQueue[F, Json]
+    callback <- Queue.synchronous[F, Json]
     _ = responseCallbacks += (id -> callback)
     _ <- requestQ.enqueue1(ChromeRequest(id, method, params))
     json <- callback.dequeue1

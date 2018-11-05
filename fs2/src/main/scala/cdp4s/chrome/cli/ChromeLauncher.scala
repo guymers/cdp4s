@@ -7,6 +7,7 @@ import java.nio.file.Path
 import scala.concurrent.duration._
 
 import cats.effect.Concurrent
+import cats.effect.ContextShift
 import cats.effect.Resource
 import cats.effect.Sync
 import cats.effect.Timer
@@ -29,7 +30,7 @@ object ChromeLauncher {
     */
   def launchHeadless[F[_]](
     path: Path
-  )(implicit F: Concurrent[F], T: Timer[F]): Resource[F, ChromeInstance] = {
+  )(implicit F: Concurrent[F], T: Timer[F], CS: ContextShift[F]): Resource[F, ChromeInstance] = {
     val arguments = ChromeCLIArgument.defaultArguments ++ ChromeCLIArgument.headlessArguments
     launchWithArguments(path, arguments)
   }
@@ -39,7 +40,7 @@ object ChromeLauncher {
     */
   def launch[F[_]](
     path: Path
-  )(implicit F: Concurrent[F], T: Timer[F]): Resource[F, ChromeInstance] = {
+  )(implicit F: Concurrent[F], T: Timer[F], CS: ContextShift[F]): Resource[F, ChromeInstance] = {
     val arguments = ChromeCLIArgument.defaultArguments
     launchWithArguments(path, arguments)
   }
@@ -50,7 +51,7 @@ object ChromeLauncher {
   def launchWithArguments[F[_]](
     path: Path,
     arguments: Set[ChromeCLIArgument]
-  )(implicit F: Concurrent[F], T: Timer[F]): Resource[F, ChromeInstance] = {
+  )(implicit F: Concurrent[F], T: Timer[F], CS: ContextShift[F]): Resource[F, ChromeInstance] = {
 
     Resource.make(startChromeProcess(path, arguments)) {
       case (process, tempUserDataDir) => stopChromeProcess(process, tempUserDataDir)
@@ -72,12 +73,12 @@ object ChromeLauncher {
 
   private def processOutput[F[_]](
     process: Process
-  )(implicit F: Concurrent[F], T: Timer[F]): Stream[F, Either[String, String]] = {
+  )(implicit F: Concurrent[F], CS: ContextShift[F]): Stream[F, Either[String, String]] = {
 
     def readInputStream(inputStream: InputStream) = {
       // readInputStreamAsync will block a thread on the ec it uses
       val blockingExecutionContext = scala.concurrent.ExecutionContext.global
-      fs2.io.readInputStreamAsync(F.delay(inputStream), 4096, blockingExecutionContext, closeAfterUse = false)
+      fs2.io.readInputStream(F.delay(inputStream), 4096, blockingExecutionContext, closeAfterUse = false)
         .through(fs2.text.utf8Decode)
         .through(fs2.text.lines)
     }

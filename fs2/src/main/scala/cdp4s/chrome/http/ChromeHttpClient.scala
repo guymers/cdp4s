@@ -3,6 +3,7 @@ package cdp4s.chrome.http
 import java.nio.channels.AsynchronousChannelGroup
 
 import cats.effect.ConcurrentEffect
+import cats.effect.ContextShift
 import cats.effect.Sync
 import cats.effect.Timer
 import cats.instances.string._
@@ -28,7 +29,8 @@ object ChromeHttpClient {
   def apply[F[_]](chromeInstance: ChromeInstance)(implicit
     AG: AsynchronousChannelGroup,
     F: ConcurrentEffect[F],
-    T: Timer[F]
+    T: Timer[F],
+    CS: ContextShift[F]
   ): F[ChromeHttpClient[F]] = {
     spinoco.fs2.http.client[F]().map { httpClient =>
       new ChromeHttpClient[F](chromeInstance, httpClient)

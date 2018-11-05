@@ -2,11 +2,11 @@ import java.io.File
 import java.nio.file.Files
 
 val catsVersion = "1.4.0"
-val circeVersion = "0.9.3"
+val circeVersion = "0.10.1"
 
 lazy val commonSettings = Seq(
   name := "cdp4s",
-  scalaVersion := "2.12.6",
+  scalaVersion := "2.12.7",
   crossScalaVersions := Seq("2.11.12", scalaVersion.value),
 
   // https://tpolecat.github.io/2017/04/25/scalac-flags.html
@@ -94,11 +94,11 @@ lazy val fs2 = project.in(file("fs2"))
   .settings(moduleName := "cdp4s-fs2")
   .settings(commonSettings)
   .settings(Seq(
-    addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.7" cross CrossVersion.binary),
+    addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.8" cross CrossVersion.binary),
 
     libraryDependencies ++= {
       Seq(
-        "com.spinoco" %% "fs2-http" % "0.4.0-M2",
+        "com.spinoco" %% "fs2-http" % "0.4.0",
         // relying on transitive fs2 dependency from `fs2-http`
 
         "io.circe" %% "circe-core" % circeVersion,
