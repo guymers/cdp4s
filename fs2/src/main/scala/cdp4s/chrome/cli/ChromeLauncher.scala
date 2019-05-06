@@ -11,17 +11,19 @@ import cats.effect.ContextShift
 import cats.effect.Resource
 import cats.effect.Sync
 import cats.effect.Timer
+import cats.syntax.either._
 import cats.syntax.flatMap._
+import cats.syntax.functor._
+import cats.syntax.option._
 import cdp4s.chrome.ChromeProcessException
-import cdp4s.chrome.http.ChromeInstance
 import cdp4s.util.FileHelper
+import cdp4s.ws.WsUri
 import fs2.Stream
 
 object ChromeLauncher {
 
-  private val DevToolsListeningRegex = "^DevTools listening on ([^:]+):([0-9]+)$".r
   // DevTools listening on ws://127.0.0.1:33495/devtools/browser/3e350e57-ee17-4846-892a-cad6b03b6c92
-  private val DevToolsWebSocketListeningRegex = "^DevTools listening on ws+://([^:]+):([0-9]+).*$".r
+  private val DevToolsListeningRegex = "^DevTools listening on (ws:\\/\\/.+)$".r
 
   private val PROCESS_START_TIMEOUT = 10.seconds
 
@@ -29,9 +31,10 @@ object ChromeLauncher {
     * Launch a headless chrome process located at the given path.
     */
   def launchHeadless[F[_]](
-    path: Path
+    path: Path,
+    extraArgs: Set[ChromeCLIArgument] = Set.empty
   )(implicit F: Concurrent[F], T: Timer[F], CS: ContextShift[F]): Resource[F, ChromeInstance] = {
-    val arguments = ChromeCLIArgument.defaultArguments ++ ChromeCLIArgument.headlessArguments
+    val arguments = ChromeCLIArgument.defaultArguments ++ ChromeCLIArgument.headlessArguments ++ extraArgs
     launchWithArguments(path, arguments)
   }
 
@@ -39,9 +42,10 @@ object ChromeLauncher {
     * Launch a chrome process located at the given path.
     */
   def launch[F[_]](
-    path: Path
+    path: Path,
+    extraArgs: Set[ChromeCLIArgument] = Set.empty
   )(implicit F: Concurrent[F], T: Timer[F], CS: ContextShift[F]): Resource[F, ChromeInstance] = {
-    val arguments = ChromeCLIArgument.defaultArguments
+    val arguments = ChromeCLIArgument.defaultArguments ++ extraArgs
     launchWithArguments(path, arguments)
   }
 
@@ -60,12 +64,14 @@ object ChromeLauncher {
         F.race(
           T.sleep(PROCESS_START_TIMEOUT),
           processOutput(process).collectFirst {
-            case Left(DevToolsListeningRegex(host, port)) => ChromeInstance(host, port.toInt)
-            case Left(DevToolsWebSocketListeningRegex(host, port)) => ChromeInstance(host, port.toInt)
+            case Left(DevToolsListeningRegex(uri)) => WsUri.fromStr(uri).leftMap(err => (uri, err.messageWithContext.some))
           }.compile.last // there will only be one element due to `collectFirst`
         ).flatMap {
-          case Left(_) | Right(None) => F.raiseError[ChromeInstance](ChromeProcessException.Timeout(PROCESS_START_TIMEOUT))
-          case Right(Some(instance)) => F.pure(instance)
+          case Left(_) | Right(None) => F.raiseError[WsUri](ChromeProcessException.Timeout(PROCESS_START_TIMEOUT))
+          case Right(Some(Left((uri, reason)))) => F.raiseError[WsUri](ChromeProcessException.InvalidDevToolsWebSocketUrl(uri, reason))
+          case Right(Some(Right(uri))) => F.pure(uri)
+        }.map { uri =>
+          ChromeInstance(uri)
         }
       )
     }

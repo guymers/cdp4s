@@ -1,8 +1,12 @@
-package cdp4s.chrome.http
+package cdp4s.chrome.interpreter
 
-import java.util.concurrent.atomic.AtomicInteger
+import java.nio.channels.AsynchronousChannelGroup
+import java.util.concurrent.atomic.AtomicLong
 
 import cats.effect.Concurrent
+import cats.effect.ConcurrentEffect
+import cats.effect.ContextShift
+import cats.effect.Timer
 import cats.syntax.either._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
@@ -11,7 +15,7 @@ import cdp4s.chrome.ChromeHttpException
 import cdp4s.chrome.ChromeRequest
 import cdp4s.chrome.ChromeResponse
 import cdp4s.circe._
-import cdp4s.domain.event.Event
+import cdp4s.domain.model.Target.SessionID
 import cdp4s.ws.WsUri
 import fs2.Pipe
 import fs2.Stream
@@ -26,16 +30,33 @@ import spinoco.fs2.http.websocket.Frame
 
 object ChromeWebSocketClient {
 
-  def apply[F[_], T](
+  val DEFAULT_REQUEST_QUEUE_SIZE = 1000
+
+  def apply[F[_]](
+    wsUri: WsUri,
+    initialSequence: Long = 0,
+    requestQueueSize: Int = DEFAULT_REQUEST_QUEUE_SIZE
+  )(implicit
+    AG: AsynchronousChannelGroup,
+    F: ConcurrentEffect[F],
+    T: Timer[F],
+    CS: ContextShift[F]
+  ): F[ChromeWebSocketClient[F]] = {
+    spinoco.fs2.http.client[F]().flatMap { httpClient =>
+      withHttpClient(httpClient, wsUri, initialSequence, requestQueueSize)
+    }
+  }
+
+  def withHttpClient[F[_]](
     httpClient: HttpClient[F],
     wsUri: WsUri,
-    initialSequence: Int = 0,
-    requestQueueSize: Int = 100
+    initialSequence: Long = 0,
+    requestQueueSize: Int = DEFAULT_REQUEST_QUEUE_SIZE
   )(implicit F: Concurrent[F]): F[ChromeWebSocketClient[F]] = {
 
     val initialize = for {
       requestQ <- Queue.bounded[F, ChromeRequest](requestQueueSize)
-      eventTopic <- Topic[F, Option[Event]](None)
+      eventTopic <- Topic[F, Option[ChromeEvent]](None)
     } yield (requestQ, eventTopic)
 
     initialize.map { case (requestQ, eventTopic) =>
@@ -49,23 +70,24 @@ class ChromeWebSocketClient[F[_]](
   httpClient: HttpClient[F],
   wsUri: WsUri,
   requestQ: Queue[F, ChromeRequest],
-  eventTopic: Topic[F, Option[Event]],
-  initialSequence: Int
+  eventTopic: Topic[F, Option[ChromeEvent]],
+  initialSequence: Long
 )(implicit F: Concurrent[F]) {
 
-  private val sequence = new AtomicInteger(initialSequence)
+  private val sequence = new AtomicLong(initialSequence)
 
-  private val responseCallbacks = scala.collection.mutable.Map.empty[Int, Queue[F, Json]]
+  private val responseCallbacks = scala.collection.mutable.Map.empty[Long, Queue[F, Json]]
 
-  def connect: Stream[F, Event] = {
+  def connect: Stream[F, ChromeEvent] = {
 
-    val webSocketStream: Stream[F, Unit] = httpClient.websocket(wsUri.wsRequest, pipe).flatMap {
+    val webSocketStream = httpClient.websocket(wsUri.wsRequest, pipe).flatMap {
       case None => Stream.emit(())
       case Some(response) => Stream.raiseError(ChromeHttpException.WebSocketConnection(response))
     }
 
     val stream = webSocketStream.map(Left(_)) mergeHaltBoth eventStream.map(Right(_))
     stream.collect {
+      // TODO provide every event to a consumer if they want it
       case Right(v) => v
     }
   }
@@ -75,8 +97,8 @@ class ChromeWebSocketClient[F[_]](
     *
     * NOTE: If you use this method you must ensure that the stream is run.
     */
-  def eventStream: Stream[F, Event] = {
-    eventTopic.subscribe(1000).collect {
+  def eventStream: Stream[F, ChromeEvent] = {
+    eventTopic.subscribe(10000).collect {
       case Some(e) => e
     }
   }
@@ -89,7 +111,7 @@ class ChromeWebSocketClient[F[_]](
     val in = inbound.map(_.a).flatMap { json =>
 
       def response: Option[Stream[F, Nothing]] = {
-        val responseId = json.asObject.flatMap(_.apply("id")).flatMap(_.asNumber).flatMap(_.toInt)
+        val responseId = json.asObject.flatMap(_.apply("id")).flatMap(_.asNumber).flatMap(_.toLong)
         responseId.map { id =>
           responseCallbacks.remove(id) match {
             case None => Stream.empty
@@ -106,7 +128,7 @@ class ChromeWebSocketClient[F[_]](
               ChromeHttpException.EventDecoding(json, err)
             }
             case Right(chromeEvent) => Stream.eval_ {
-              eventTopic.publish1(Some(chromeEvent.params))
+              eventTopic.publish1(Some(chromeEvent))
             }
           }
         }
@@ -120,11 +142,11 @@ class ChromeWebSocketClient[F[_]](
     out.concurrently(in)
   }
 
-  def runCommand[T : Decoder](method: String, params: JsonObject): F[T] = for {
+  def runCommand[T : Decoder](method: String, params: JsonObject, sessionId: Option[SessionID]): F[T] = for {
     id <- F.delay { sequence.incrementAndGet() }
     callback <- Queue.synchronous[F, Json]
     _ = responseCallbacks += (id -> callback)
-    _ <- requestQ.enqueue1(ChromeRequest(id, method, params))
+    _ <- requestQ.enqueue1(ChromeRequest(id, method, params, sessionId))
     json <- callback.dequeue1
     result <- parseJsonResponse(json).raiseOrPure[F]
   } yield result

@@ -1,33 +1,38 @@
 package cdp4s.domain.extensions
 
-import cdp4s.domain.Operations
+import cats.Monad
+import cats.syntax.flatMap._
+import cats.syntax.functor._
+import cdp4s.domain.Operation
 import cdp4s.domain.handles.ElementHandle
 import cdp4s.domain.model.Runtime
-import freestyle.free._
 import io.circe.syntax._
 
 object element {
 
-  def focus[F[_]](element: ElementHandle)(implicit O: Operations[F]): FreeS[F, Unit] = for {
-    _ <- execute.callFunction(
-      element.executionContextId,
-      "element => element.focus()",
-      Seq(remoteObjectToCallArgument(element.remoteObject))
-    )
+  def focus[F[_]: Monad](element: ElementHandle)(implicit op: Operation[F]): F[Unit] = for {
+    _ <- op.dom.focus(objectId = element.remoteObject.objectId)
+//    _ <- execute.callFunction(
+//      element.executionContextId,
+//      "element => element.focus()",
+//      Seq(remoteObjectToCallArgument(element.remoteObject))
+//    )
   } yield ()
 
-  def scrollIntoViewIfNeeded[F[_]](element: ElementHandle)(implicit O: Operations[F]): FreeS[F, Unit] = {
+  // from https://github.com/GoogleChrome/puppeteer/blob/v1.13.0/lib/JSHandle.js#L162
+  def scrollIntoViewIfNeeded[F[_]: Monad](element: ElementHandle)(implicit op: Operation[F]): F[Unit] = {
+    // FIXME track if JavaScript is disable EmulationsetScriptExecutionDisabled
 
     val functionDec =
       s"""element => {
-         |  if (!element.ownerDocument.contains(element)) {
+         |  if (!element.isConnected) {
          |    return 'Node is detached from document';
          |  }
          |  if (element.nodeType !== Node.ELEMENT_NODE) {
          |    return 'Node is not of type HTMLElement';
          |  }
-         |  element.scrollIntoViewIfNeeded();
-         |  return '';
+         |  element.scrollIntoView({block: 'center', inline: 'center', behavior: 'instant'});
+         |  return false;
          |}
        """.stripMargin
 
@@ -37,32 +42,37 @@ object element {
         functionDec,
         Seq(remoteObjectToCallArgument(element.remoteObject))
       )
-
-//      _ <- result.value
-      // TODO if result.value is not empty => error
+      _ <- {
+        if (result.`type` == Runtime.RemoteObject.Type.string) {
+          result.value.flatMap(_.asString) match {
+            case None => op.util.pure(())
+            case Some(v) => op.util.fail[Unit](new RuntimeException(v)) // FIXME specific error
+          }
+        } else {
+          op.util.pure(())
+        }
+      }
     } yield ()
   }
 
-  def visibleCenter[F[_]](element: ElementHandle)(implicit O: Operations[F]): FreeS[F, (Double, Double)] = for {
-    _ <- scrollIntoViewIfNeeded(element)
-    box <- boundingBox(element)
+  // https://github.com/GoogleChrome/puppeteer/blob/v1.13.0/lib/JSHandle.js#L191
+  def clickablePoint[F[_]: Monad](element: ElementHandle)(implicit op: Operation[F]): F[(Double, Double)] = for {
+    quads <- op.util.handle(
+      op.dom.getContentQuads(objectId = element.remoteObject.objectId),
+      {
+        case _: Throwable => Seq.empty // FIXME dont just ignore the error
+      }
+    )
+    // Filter out quads that have too small area to click into.
+    validQuads = (quads: Seq[cdp4s.domain.model.DOM.Quad]).map(Quadrilateral.apply).flatten.filter(_.area > 1)
+    // FIXME specific error
+    quad <- validQuads.headOption match {
+      case None => op.util.fail[Quadrilateral](new RuntimeException("Node is either not visible or not an HTMLElement"))
+      case Some(q) => op.util.pure(q)
+    }
   } yield {
-    (box.x + box.width / 2, box.y + box.height / 2)
-  }
-
-  def boundingBox[F[_]](element: ElementHandle)(implicit O: Operations[F]): FreeS[F, BoundingBox] = for {
-    model <- O.domain.dom.getBoxModel(objectId = element.remoteObject.objectId)
-  } yield {
-    val border = model.border.value.zipWithIndex
-    val xs = border.collect { case (x, i) if i % 2 == 0 => x }
-    val ys = border.collect { case (y, i) if i % 2 == 1 => y }
-
-    val x = xs.min
-    val y = ys.min
-    val width = xs.max - x
-    val height = ys.max - y
-
-    BoundingBox(x, y, width, height)
+    val middle = quad.middle
+    (middle.x, middle.y)
   }
 
   private def remoteObjectToCallArgument(remoteObject: Runtime.RemoteObject): Runtime.CallArgument = {
@@ -72,5 +82,3 @@ object element {
     }
   }
 }
-
-final case class BoundingBox(x: Double, y: Double, width: Double, height: Double)

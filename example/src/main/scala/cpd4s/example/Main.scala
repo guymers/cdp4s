@@ -3,32 +3,41 @@ package cpd4s.example
 import java.net.URI
 import java.nio.channels.AsynchronousChannelGroup
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
 import java.time.Instant
-import java.util.Base64
 import java.util.concurrent.Executors
 
 import scala.concurrent.duration._
+import scala.util.control.NonFatal
 
+import cats.Monad
+import cats.Parallel
+import cats.data.Kleisli
+import cats.effect.Concurrent
 import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.Resource
+import cats.effect.Timer
+import cats.effect.syntax.concurrent._
+import cats.instances.string._
+import cats.syntax.flatMap._
+import cats.syntax.functor._
+import cats.syntax.option._
+import cats.syntax.show._
 import cdp4s.chrome.cli.ChromeLauncher
-import cdp4s.chrome.http.ChromeHttpClient
-import cdp4s.chrome.interpreter.runProgram
-import cdp4s.domain.Extensions
-import cdp4s.domain.Operations
-import cdp4s.domain.event.PageEvent
-import cdp4s.domain.event.RuntimeEvent
+import cdp4s.chrome.interpreter.ChromeWebSocketClient
+import cdp4s.chrome.interpreter.ChromeWebSocketInterpreter
+import cdp4s.domain.Operation
+import cdp4s.domain.handles.ElementHandle
 import cdp4s.domain.handles.PageHandle
-import cdp4s.domain.model.Page
-import cdp4s.domain.model.Runtime.ExecutionContextId
-import freestyle.free.FreeS
 import fs2.Stream
 
 object Main extends IOApp {
+
+  private val Headless = true
 
   private val NumProcessors = Runtime.getRuntime.availableProcessors()
 
@@ -37,99 +46,163 @@ object Main extends IOApp {
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
-    stream(args).to { s =>
-      s.evalMap { result =>
-        IO {
-          println(s"${Thread.currentThread().getName} ${Instant.now()}: $result")
+    IO.delay {
+      val errorDir = Files.createTempDirectory("cdp4s-example-errors")
+      println(show"Error directory is ${errorDir.toFile.getAbsolutePath}")
+      errorDir
+    }.flatMap { errorDir =>
+      stream(args, errorDir)
+        .through { screenshot =>
+          screenshot.evalMap { screenshot =>
+            IO {
+              println(show"${Instant.now().toString}: Screenshot at ${screenshot.toFile.getAbsolutePath}")
+            }
+          }
         }
-      }
-    }.compile.drain.map(_ => ExitCode.Success)
+        .compile
+        .drain
+        .map(_ => ExitCode.Success)
+    }
+
   }
 
-  private def stream(args: List[String]) = {
+  private def stream(args: List[String], errorDir: Path) = {
 
     val chromePath = Paths.get(args.headOption.getOrElse("/usr/bin/chromium"))
+    val launch = {
+      // sudo sysctl -w kernel.unprivileged_userns_clone=1
+      if (Headless) ChromeLauncher.launchHeadless[IO](chromePath, Set.empty)
+      else ChromeLauncher.launch[IO](chromePath, Set.empty)
+    }
+    val chromeClient = launch.flatMap(instance => Resource.liftF(ChromeWebSocketClient[IO](instance.devToolsWebSocket)))
+    val chromeInterpreter = chromeClient.flatMap(client => ChromeWebSocketInterpreter.create(client))
 
-    val chromeHttpClient = ChromeLauncher.launchHeadless[IO](chromePath)
-      .flatMap(instance => Resource.liftF(ChromeHttpClient[IO](instance)))
-
-    Stream.resource(chromeHttpClient)
-      .flatMap { httpClient =>
-
-        val programs = Stream.emits(List(
-          //program[Operations.Op],
-          //program[Operations.Op],
-          //program[Operations.Op],
-          program[Operations.Op]
-        )).covary[IO]
-
+    // FIXME make the below nicer
+    Stream.resource(chromeInterpreter).flatMap { interpreter =>
+      val programs = List(
+        Kleisli { op: Operation[IO] => takeScreenshot[IO](new URI("https://news.ycombinator.com/news"))(implicitly, op) },
+        Kleisli { op: Operation[IO] => takeScreenshot[IO](new URI("https://reddit.com"))(implicitly, op) },
+        Kleisli { op: Operation[IO] => searchGoogle[IO]("test")(implicitly, implicitly, op) },
+        Kleisli { op: Operation[IO] => searchGoogle[IO]("example")(implicitly, implicitly, op) },
+      )
+      val programStreams = Stream.emits {
         programs
-          .map(p => runProgram(httpClient, p))
-          .parJoin(NumProcessors)
-          .collect {
-            case Right(frameId) => frameId
+          .map { k =>
+            Kleisli { op: Operation[IO] =>
+              screenshotOnError(errorDir)(k.run(op))(implicitly, op)
+            }
           }
-      }
+          .map { k =>
+            interpreter.run(op => k.run(op))
+          }
+          .map(Stream.eval)
+      }.covary[IO]
+
+      programStreams.parJoin(NumProcessors)
+    }
 
   }
 
-  private def program[F[_]](implicit ops: Operations[F]): FreeS[F, Page.FrameId] = {
-    import cats.implicits._
-    import freestyle.free._
-    import freestyle.free.implicits._
-    import ops.domain._
-
+  private def takeScreenshot[F[_]: Concurrent](uri: URI)(implicit op: Operation[F]): F[Path] = {
     val timeout = 10.seconds
 
     for {
-      tempDir <- ops.util.delay { _ =>
-        Files.createTempDirectory("cdp4s-example")
-      }
-      _ <- ops.util.delay { _ =>
-        println("Using temp directory " + tempDir.toFile.getAbsolutePath)
-      }
-      _ <- (page.enable, runtime.enable).tupled.freeS
-      _ <- Extensions.ignoreAllHTTPSErrors
-      _ <- emulation.setDeviceMetricsOverride(1280, 1024, 0.0D, mobile = false)
+      _ <- initTab
 
+      optPageHandle <- PageHandle.navigate(uri, timeout)
+      _ <- optPageHandle match {
+        case None => op.util.fail[PageHandle](new RuntimeException(show"Failed to navigate to ${uri.toString}"))
+        case Some(v) => op.util.pure(v)
+      }
 
-      optPageHandle <- PageHandle.navigate(new URI("https://google.com"))(ops, timeout)
+      screenshot <- screenshotToTempFile
+    } yield screenshot
+  }
+
+  private def searchGoogle[F[_]: Concurrent: Timer](search: String)(implicit op: Operation[F]): F[Path] = {
+    val timeout = 10.seconds
+
+    for {
+      _ <- initTab
+
+      optPageHandle <- PageHandle.navigate(new URI("https://google.com"), timeout)
       pageHandle <- optPageHandle match {
-        case None => ops.util.fail(new RuntimeException("Timeout navigating"))
-        case Some(v) => ops.util.pure(v)
-      }
-      layoutMetrics <- page.getLayoutMetrics
-      _ = println(layoutMetrics)
-      image1Data <- page.captureScreenshot().map(Base64.getDecoder.decode)
-      _ <- ops.util.delay { _ =>
-        val file = tempDir.resolve("ss-01.png")
-        Files.write(file, image1Data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+        case None => op.util.fail[PageHandle](new RuntimeException(show"Failed to navigate to Google"))
+        case Some(v) => op.util.pure(v)
       }
 
-
-      searchTextElement <- pageHandle.find("#lst-ib")
-      _ <- searchTextElement.get.`type`("test")
-      image2Data <- page.captureScreenshot().map(Base64.getDecoder.decode)
-      _ <- ops.util.delay { _ =>
-        val file = tempDir.resolve("ss-02.png")
-        Files.write(file, image2Data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+      optSearchTextElement <- pageHandle.find("input[type='text'][title='Search']")
+      searchTextElement <- optSearchTextElement match {
+        case None => op.util.fail[ElementHandle](new RuntimeException("Failed to find search input"))
+        case Some(v) => op.util.pure(v)
       }
+      _ <- searchTextElement.`type`(search)
 
-
-      searchButton <- pageHandle.find("input[type='submit'][name='btnK']")
-      _ <- (
-        searchButton.get.click,
-        (
-          ops.event.waitForEvent({ case e: RuntimeEvent.ExecutionContextCreated => e.context.id }, timeout),
-          ops.event.waitForEvent({ case _: PageEvent.DomContentEventFired => () }, timeout)
-        ).tupled.freeS
-      ).tupled : FreeS[F, (Unit, (Option[ExecutionContextId], Option[Unit]))]
-      image3Data <- page.captureScreenshot().map(Base64.getDecoder.decode)
-      _ <- ops.util.delay { _ =>
-        val file = tempDir.resolve("ss-03.png")
-        Files.write(file, image3Data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+      optSearchButton <- pageHandle.find("input[type='submit'][name='btnK']")
+      searchButton <- optSearchButton match {
+        case None => op.util.fail[ElementHandle](new RuntimeException("Failed to click search button"))
+        case Some(v) => op.util.pure(v)
       }
-    } yield pageHandle.frameId
+      _ <- {
+        def untilVisible: F[Unit] = searchButton.isVisible.flatMap {
+          case true => op.util.pure(())
+          case false => op.util.sleep(100.milliseconds) >> untilVisible
+        }
+        untilVisible.timeout(5.seconds)
+      }
+      _ <- PageHandle.navigating(searchButton.click, timeout)
+
+      screenshot <- screenshotToTempFile
+    } yield screenshot
+  }
+
+  private def initTab[F[_]: Concurrent](implicit op: Operation[F]): F[Unit] = {
+    import cats.instances.list._
+    implicit val parallel: Parallel[F, F] = parallelFromConcurrent
+
+    for {
+      _ <- Parallel.parSequence(List(
+        op.page.enable,
+        op.runtime.enable,
+      ))
+      _ <- op.emulation.setDeviceMetricsOverride(1280, 1024, 0.0D, mobile = false)
+    } yield ()
+  }
+
+  private def screenshotToTempFile[F[_]: Monad](implicit op: Operation[F]): F[Path] = {
+    for {
+      data <- op.page.captureScreenshot(format = cdp4s.domain.model.Page.params.Format.png.some)
+      file <- op.util.delay { _ =>
+        Files.createTempFile("cdp4s-example", ".png")
+      }
+      file <- op.util.delay { _ =>
+        Files.write(file, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+      }
+    } yield file
+  }
+
+  private def screenshotOnError[F[_]: Monad, T](dir: Path)(
+    program: F[T]
+  )(implicit op: Operation[F]): F[ T] = {
+
+    def screenshotToDirectory(t: Throwable): F[ T] = {
+      for {
+        data <- op.page.captureScreenshot(format = cdp4s.domain.model.Page.params.Format.png.some)
+        file <- op.util.delay { _ =>
+          Files.createTempFile(dir, "error", ".png")
+        }
+        _ <- op.util.delay { _ =>
+          Files.write(file, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+        }
+        result <- op.util.fail[T](t)
+      } yield result
+    }
+
+    for {
+      result <- op.util.handleWith(program, {
+        case NonFatal(e) => screenshotToDirectory(e)
+      })
+    } yield result
   }
 
 }

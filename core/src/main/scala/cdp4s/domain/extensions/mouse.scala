@@ -1,29 +1,25 @@
 package cdp4s.domain.extensions
 
-import cdp4s.domain.Operations
+import cats.Monad
+import cats.syntax.flatMap._
+import cats.syntax.functor._
+import cdp4s.domain.Operation
 import cdp4s.domain.model.Input
 import cdp4s.domain.model.Input.params.Type
-import freestyle.free._
 
 object mouse {
 
-  def move[F[_]](x: Double, y: Double)(implicit O: Operations[F]): FreeS[F, Unit] = {
-    import O.domain._
+  def move[F[_]: Monad](x: Double, y: Double)(implicit op: Operation[F]): F[Unit] = for {
+    _ <- op.input.dispatchMouseEvent(Type.mouseMoved, x, y)
+  } yield ()
 
-    for {
-      _ <- input.dispatchMouseEvent(Type.mouseMoved, x, y)
-    } yield ()
-  }
-
-  def click[F[_]](x: Double, y: Double)(implicit O: Operations[F]): FreeS[F, Unit] = {
-    import O.domain._
-
+  def click[F[_]: Monad](x: Double, y: Double)(implicit op: Operation[F]): F[Unit] = {
     val button = Input.params.Button.left
 
     for {
       _ <- move(x, y)
-      _ <- input.dispatchMouseEvent(Type.mousePressed, x, y, button = Some(button), clickCount = Some(1))
-      _ <- input.dispatchMouseEvent(Type.mouseReleased, x, y, button = Some(button), clickCount = Some(1))
+      _ <- op.input.dispatchMouseEvent(Type.mousePressed, x, y, button = Some(button), clickCount = Some(1))
+      _ <- op.input.dispatchMouseEvent(Type.mouseReleased, x, y, button = Some(button), clickCount = Some(1))
     } yield ()
   }
 }

@@ -1,5 +1,5 @@
 package protocol.template
-package handler
+package interpreter
 
 import protocol.chrome.ChromeProtocolCommand
 import protocol.chrome.ChromeProtocolDomain
@@ -8,14 +8,14 @@ import protocol.template.types.ScalaChromeType
 import protocol.template.types.ScalaChromeTypeContext
 import protocol.util.StringUtils
 
-object HandlerTemplate {
+object InterpreterTemplate {
 
-  def create(domain: ChromeProtocolDomain): HandlerTemplate = {
-    HandlerTemplate(domain.domain, domain.commands)
+  def create(domain: ChromeProtocolDomain): InterpreterTemplate = {
+    InterpreterTemplate(domain.domain, domain.commands)
   }
 }
 
-final case class HandlerTemplate(
+final case class InterpreterTemplate(
   domain: String,
   commands: Seq[ChromeProtocolCommand],
 ) {
@@ -24,10 +24,8 @@ final case class HandlerTemplate(
   private implicit val ctx: ScalaChromeTypeContext = ScalaChromeTypeContext.defaultCtx(domain)
 
   def toLines: Seq[String] = {
-    val safeDomain = escapeScalaVariable(domain)
-
     Seq(
-      Seq(s"implicit val ${safeDomain}Handler: $safeDomain.Handler[M] = new $safeDomain.Handler[M] {"),
+      Seq(s"override val ${StringUtils.unCamelCase(domain)}: cdp4s.domain.$domain[M] = new cdp4s.domain.$domain[M] {"),
       commands.flatMap(commandTemplate).indent(1),
       Seq("}"),
     ).flatten
@@ -59,7 +57,7 @@ final case class HandlerTemplate(
     val (customDecoder, customDecoderLines) = returns match {
       case ret +: Seq() =>
         val lines = Seq(
-          "val decoder = io.circe.Decoder.instance { c =>",
+          "val decoder = Decoder.instance { c =>",
           s"""  c.downField("${escapeScalaVariable(ret.name)}").as[$returnTypeStr]""",
           "}",
           "",

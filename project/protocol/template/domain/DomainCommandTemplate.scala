@@ -16,7 +16,7 @@ object DomainCommandTemplate {
       command.name,
       command.description,
       parameterTemplates,
-      "FS",
+      "F",
       DomainCommandReturnType.create(command)
     )
   }

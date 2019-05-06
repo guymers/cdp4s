@@ -27,6 +27,8 @@ object StringUtils {
     * ApplicationCache -> applicationCache
     * CSS -> css
     * DOMDebugger -> domDebugger
+    *
+    * // FIXME def indexeddb: IndexedDB[F]
     */
   def unCamelCase(str: String): String = {
     val strLower = str.headOption.map(c => c.toLower +: str.drop(1)).getOrElse("")

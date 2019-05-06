@@ -42,6 +42,10 @@ final case class WsUri(
 
 object WsUri {
 
+  def fromStr(uri: String): Either[Err, WsUri] = {
+    Uri.parse(uri).flatMap(fromUri).toEither
+  }
+
   def fromUri(uri: Uri): Attempt[WsUri] = {
     uri.scheme match {
       case HttpScheme.WS => Attempt.successful {
@@ -57,6 +61,6 @@ object WsUri {
   }
 
   implicit val decoder: Decoder[WsUri] = Decoder[String].emap { str =>
-    Uri.parse(str).flatMap(fromUri).toEither.leftMap(_.messageWithContext)
+    fromStr(str).leftMap(_.messageWithContext)
   }
 }

@@ -11,6 +11,7 @@ sealed trait ChromeProtocolType {
 object ChromeProtocolType {
 
   final case class any(optional: Boolean) extends ChromeProtocolType
+  final case class binary(optional: Boolean) extends ChromeProtocolType
   final case class string(optional: Boolean) extends ChromeProtocolType
   final case class integer(optional: Boolean) extends ChromeProtocolType
   final case class number(optional: Boolean) extends ChromeProtocolType
@@ -36,6 +37,7 @@ object ChromeProtocolType {
       result <- {
         val decodedType = tpe.map {
           case "any" => any(optional).asRight
+          case "binary" => binary(optional).asRight
           case "string" =>
             c.downField("enum").as[Option[Seq[String]]].map {
               case None => string(optional)

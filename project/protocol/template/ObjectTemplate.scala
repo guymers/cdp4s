@@ -47,7 +47,7 @@ final case class ObjectTemplate(
       Seq(
         "",
         s"implicit val decoder: io.circe.Decoder[$safeName] = io.circe.generic.semiauto.deriveDecoder",
-        s"implicit val encoder: io.circe.Encoder[$safeName] = io.circe.generic.semiauto.deriveEncoder",
+        s"implicit val encoder: io.circe.ObjectEncoder[$safeName] = io.circe.generic.semiauto.deriveEncoder",
       ).indent(1),
       Seq("}"),
       Seq(""),

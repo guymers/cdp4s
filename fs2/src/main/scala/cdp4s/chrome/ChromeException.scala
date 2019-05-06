@@ -4,18 +4,14 @@ import java.nio.file.Path
 
 import scala.concurrent.duration.FiniteDuration
 
-import cats.Show
 import cats.instances.int._
 import cats.instances.long._
 import cats.instances.string._
 import cats.syntax.show._
-import cdp4s.chrome.http.ChromeTab
-import cdp4s.domain.model.Target
 import cdp4s.exception.CDP4sException
 import io.circe.DecodingFailure
 import io.circe.Json
 import spinoco.protocol.http.HttpResponseHeader
-import spinoco.protocol.mime.ContentType
 
 sealed abstract class ChromeException(msg: String) extends CDP4sException(msg)
 
@@ -23,12 +19,16 @@ sealed abstract class ChromeProcessException(msg: String) extends CDP4sException
 
 object ChromeProcessException {
 
-  final case class NonExecutablePath(path: Path) extends RuntimeException(
+  final case class NonExecutablePath(path: Path) extends ChromeProcessException(
     show"Chrome path ${path.toFile.getAbsolutePath} is not executable"
   )
 
   final case class Timeout(timeout: FiniteDuration) extends ChromeProcessException(
     show"Failed to connect to chrome instance after ${timeout.toSeconds} seconds"
+  )
+
+  final case class InvalidDevToolsWebSocketUrl(url: String, reason: Option[String]) extends ChromeProcessException(
+    show"Invalid DevTools websocket url $url ${reason.fold("")(s => show": $s")}"
   )
 
   final case class Exit(exitValue: Int) extends ChromeProcessException(
@@ -39,18 +39,6 @@ object ChromeProcessException {
 sealed abstract class ChromeHttpException(msg: String) extends CDP4sException(msg)
 
 object ChromeHttpException {
-
-  final case class UnsuccessfulResponse(header: HttpResponseHeader, bodyFragment: String) extends ChromeHttpException(
-    s"Invalid Chrome http client response (${header.status.code}): ${bodyFragment.take(256)}"
-  )
-
-  final case class ClientResponseException(err: io.circe.Error, body: String) extends ChromeHttpException(
-    s"Invalid Chrome http client response: $err - $body"
-  )
-
-  final case class NonJsonContentType(contentType: Option[ContentType]) extends ChromeHttpException(
-    s"Response returned invalid content type ${contentType.map(_.show).getOrElse("<none>")}"
-  )
 
   final case class InvalidResponse(json: Json) extends ChromeException(
     show"Chrome response has neither an error or a response: ${json.noSpaces.take(250)}"
@@ -73,15 +61,4 @@ object ChromeHttpException {
     show"${error.message}$errorData"
   })
 
-  final case class NoWebSocketDebuggerUrl(tab: ChromeTab) extends ChromeException(
-    show"Chrome tab has no web socket debugger url: ${tab.title} (${tab.url})"
-  )
-
-  final case class NoTab(targetId: Target.TargetID) extends ChromeException(
-    show"Cannot find tab with target id ${targetId.value}"
-  )
-
-  private implicit val showContentType: Show[ContentType] = Show.show { c =>
-    show"${c.mediaType.mainType}/${c.mediaType.subType}"
-  }
 }

@@ -20,10 +20,8 @@ final case class ModuleTemplate(
       Seq(""),
       Seq("package cdp4s.domain"),
       Seq(""),
-      Seq("import freestyle.free.module"),
-      Seq(""),
-      Seq(s"@module trait Domains {"),
-      domains.sorted.map(domain => s"val ${StringUtils.unCamelCase(domain)}: $domain").indent(1),
+      Seq("trait All[F[_]] {"),
+      domains.sorted.map(domain => s"val ${StringUtils.unCamelCase(domain)}: $domain[F]").indent(1),
       Seq("}"),
     ).flatten
   }

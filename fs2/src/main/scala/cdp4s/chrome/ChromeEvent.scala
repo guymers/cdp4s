@@ -4,12 +4,14 @@ import cats.syntax.either._
 import cats.instances.string._
 import cats.syntax.show._
 import cdp4s.domain.event.Event
+import cdp4s.domain.model.Target.SessionID
 import io.circe.Decoder
 import io.circe.DecodingFailure
 
 final case class ChromeEvent(
   method: String,
-  params: Event
+  params: Event,
+  sessionId: Option[SessionID]
 )
 
 object ChromeEvent {
@@ -22,6 +24,7 @@ object ChromeEvent {
         DecodingFailure(show"No decoder for event '$method'", c.history)
       )
       params <- c.downField("params").as(eventDecoder)
-    } yield ChromeEvent(method, params)
+      sessionId <- c.downField("sessionId").as[Option[SessionID]]
+    } yield ChromeEvent(method, params, sessionId)
   }
 }

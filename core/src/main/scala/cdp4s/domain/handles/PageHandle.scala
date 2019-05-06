@@ -4,36 +4,62 @@ import java.net.URI
 
 import scala.concurrent.duration._
 
-import cdp4s.domain.Operations
+import cats.Monad
+import cats.effect.Concurrent
+import cats.effect.Resource
+import cats.effect.syntax.concurrent._
+import cats.syntax.flatMap._
+import cats.syntax.functor._
+import cdp4s.domain.Operation
 import cdp4s.domain.event.PageEvent
 import cdp4s.domain.event.RuntimeEvent
 import cdp4s.domain.model.Page
-import cdp4s.domain.model.Page.results.NavigateResult
 import cdp4s.domain.model.Runtime
-import cdp4s.domain.model.Runtime.ExecutionContextId
-import freestyle.free._
-
-// FIXME cleanup
-import cats.implicits._
-import freestyle.free.implicits._
 
 object PageHandle {
 
-  def navigate[F[_]](url: URI)(implicit O: Operations[F], timeout: FiniteDuration): FreeS[F, Option[PageHandle]] = {
-    import O.domain._
+  /**
+    * Navigate to a url.
+    *
+    * Ensure that page and runtime events are enabled before calling this method.
+    */
+  def navigate[F[_]](url: URI, timeout: FiniteDuration)(implicit F: Concurrent[F], op: Operation[F]): F[Option[PageHandle]] = {
+    navigating(op.page.navigate(url.toString), timeout).map {
+      _.map { case (navigateResult, execCtxId) => PageHandle(navigateResult.frameId, execCtxId) }
+    }
+  }
 
-    for {
-      (navigateResult, execId, content) <- (
-        page.navigate(url.toString),
-        O.event.waitForEvent({ case e: RuntimeEvent.ExecutionContextCreated => e.context.id }, timeout),
-        O.event.waitForEvent({ case _: PageEvent.DomContentEventFired => () }, timeout)
-      ).tupled.freeS : FreeS[F, (NavigateResult, Option[ExecutionContextId], Option[Unit])]
-    } yield {
+  /**
+    * Perform an action that is expected to navigate to another page.
+    *
+    * Ensure that page and runtime events are enabled before calling this method.
+    */
+  def navigating[F[_], T](
+    action: F[T],
+    timeout: FiniteDuration
+  )(implicit F: Concurrent[F], op: Operation[F]): F[Option[(T, Runtime.ExecutionContextId)]] = {
+    val waitForEvents = for {
+      execCtxIdFiber <- Resource.make(
+        op.event.waitForEvent({ case e: RuntimeEvent.ExecutionContextCreated => e.context.id }, timeout).start
+      )(_.cancel)
+      // puppeteer allows waiting on one of 4 events
+      contentFiber <- Resource.make(
+        op.event.waitForEvent({ case _: PageEvent.DomContentEventFired => () }, timeout).start
+      )(_.cancel)
+    } yield (execCtxIdFiber, contentFiber)
+
+    waitForEvents.use { case (execCtxIdFiber, contentFiber) =>
       for {
-        execId <- execId
-        _ <- content
+        result <- action
+        execCtxId <- execCtxIdFiber.join
+        content <- contentFiber.join
       } yield {
-        PageHandle(navigateResult.frameId, execId)
+        for {
+          execCtxId <- execCtxId
+          _ <- content
+        } yield {
+          (result, execCtxId)
+        }
       }
     }
   }
@@ -43,12 +69,10 @@ final case class PageHandle(
   frameId: Page.FrameId,
   executionContextId: Runtime.ExecutionContextId
 ) {
+  import cdp4s.domain.extensions
 
-  def find[F[_]](selector: String)(implicit O: Operations[F]): FreeS[F, Option[ElementHandle]] = {
-    import cdp4s.domain.extensions
+  def find[F[_]: Monad](selector: String)(implicit op: Operation[F]): F[Option[ElementHandle]] = for {
+    element <- extensions.selector.find(executionContextId, selector)
+  } yield element
 
-    for {
-      element <- extensions.selector.find(executionContextId, selector)
-    } yield element
-  }
 }

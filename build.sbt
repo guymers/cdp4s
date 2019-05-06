@@ -1,12 +1,13 @@
 import java.io.File
 import java.nio.file.Files
 
-val catsVersion = "1.4.0"
-val circeVersion = "0.10.1"
+val catsVersion = "1.6.0"
+val catsEffectVersion = "1.3.0"
+val circeVersion = "0.11.1"
 
 lazy val commonSettings = Seq(
   name := "cdp4s",
-  scalaVersion := "2.12.7",
+  scalaVersion := "2.12.8",
   crossScalaVersions := Seq("2.11.12", scalaVersion.value),
 
   // https://tpolecat.github.io/2017/04/25/scalac-flags.html
@@ -51,7 +52,7 @@ lazy val commonSettings = Seq(
   dependencyOverrides += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
 
   addCompilerPlugin("org.scalameta" % "paradise" % "3.0.0-M11" cross CrossVersion.full),
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.2.4"),
+  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0"),
 
   fork := true,
 
@@ -71,12 +72,13 @@ lazy val core = project.in(file("core"))
   .settings(commonSettings)
   .settings(Seq(
     libraryDependencies ++= Seq(
-      "io.frees" %% "frees-core" % "0.8.2",
+      "org.typelevel" %% "cats-core" % catsVersion,
+      "org.typelevel" %% "cats-effect" % catsEffectVersion,
 
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
 
-      "org.scalatest" %% "scalatest" % "3.0.5" % "test",
+      "org.scalatest" %% "scalatest" % "3.0.7" % "test",
     ),
 
     sourceGenerators in Compile += Def.task[Seq[File]] {
@@ -94,20 +96,19 @@ lazy val fs2 = project.in(file("fs2"))
   .settings(moduleName := "cdp4s-fs2")
   .settings(commonSettings)
   .settings(Seq(
-    addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.8" cross CrossVersion.binary),
+    addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary),
 
     libraryDependencies ++= {
       Seq(
-        "com.spinoco" %% "fs2-http" % "0.4.0",
-        // relying on transitive fs2 dependency from `fs2-http`
+        "com.spinoco" %% "fs2-http" % "0.4.1",
+        "co.fs2" %% "fs2-core" % "1.0.4",
+        "co.fs2" %% "fs2-io" % "1.0.4",
+
+        "org.typelevel" %% "cats-core" % catsVersion,
 
         "io.circe" %% "circe-core" % circeVersion,
         "io.circe" %% "circe-generic" % circeVersion,
         "io.circe" %% "circe-parser" % circeVersion,
-        "io.circe" %% "circe-scodec" % circeVersion,
-
-        "org.typelevel" %% "cats-core" % catsVersion,
-        "org.typelevel" %% "cats-free" % catsVersion,
       )
     }
 

@@ -28,6 +28,7 @@ object ScalaChromeType {
 
       tpe match {
         case any(_) => Fixed("io.circe.Json", optWrappers(wrappers))
+        case binary(_) => Fixed("scala.Array[Byte]", optWrappers(wrappers))
         case string(_) => Fixed("scala.Predef.String", optWrappers(wrappers))
         case integer(_) => Fixed("scala.Int", optWrappers(wrappers))
         case number(_) => Fixed("scala.Double", optWrappers(wrappers))
@@ -36,7 +37,7 @@ object ScalaChromeType {
         case obj(properties, _) => if (properties.nonEmpty) {
           Obj(name, optWrappers(wrappers))
         } else {
-          Fixed("io.circe.JsonObject", optWrappers(wrappers))
+          Fixed("_root_.io.circe.JsonObject", optWrappers(wrappers))
         }
         case enum(_, _) => Enum(name, optWrappers(wrappers))
         case reference(refDomain, ref, _) => Reference(refDomain, ref, optWrappers(wrappers))

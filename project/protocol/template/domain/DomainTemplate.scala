@@ -29,9 +29,7 @@ final case class DomainTemplate(
       Seq(""),
       Seq("package cdp4s.domain"),
       Seq(""),
-      Seq("import freestyle.free.free"),
-      Seq(""),
-      Seq(s"@free trait $safeName {"),
+      Seq(s"trait $safeName[F[_]] {"),
       commandTemplates.flatMap(_.toLines).indent(1),
       Seq("}"),
     ).flatten

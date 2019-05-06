@@ -11,7 +11,7 @@ object TypeTemplate {
     import InnerTypeTemplate._
 
     val template = typeDesc.`type` match {
-      case any(_) | string(_) | integer(_) | number(_) | boolean(_) | array(_, _) => Some {
+      case any(_) | binary(_) | string(_) | integer(_) | number(_) | boolean(_) | array(_, _) => Some {
         NewType { NewTypeTemplate.create(typeDesc) }
       }
 

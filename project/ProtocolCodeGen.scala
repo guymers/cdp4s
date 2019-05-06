@@ -5,7 +5,7 @@ import protocol.chrome.ChromeProtocol
 import protocol.template.EventsTemplate
 import protocol.template.ModuleTemplate
 import protocol.template.domain.DomainTemplate
-import protocol.template.handler.HandlersTemplate
+import protocol.template.interpreter.WebSocketInterpreterTemplate
 import protocol.template.types.ScalaChromeTypeContext
 import protocol.template.types.TypesTemplate
 import protocol.util.StringUtils
@@ -23,8 +23,8 @@ object ProtocolCodeGen {
     val protocol = result.toTry.get
 
     Map(
-      "cdp4s/domain/Domains.scala" -> ModuleTemplate.create(protocol.domains).toLines,
-      "cdp4s/domain/ChromeWebSocketHandlers.scala" -> HandlersTemplate.create(protocol.domains).toLines,
+      "cdp4s/domain/All.scala" -> ModuleTemplate.create(protocol.domains).toLines,
+      "cdp4s/interpreter/WebSocketInterpreter.scala" -> WebSocketInterpreterTemplate.create(protocol.domains).toLines,
       "cdp4s/domain/event/events.scala" -> EventsTemplate.create(protocol.domains).toLines,
     ) ++
       protocol.domains.flatMap { domain =>

@@ -1,33 +1,41 @@
 package cdp4s.domain.handles
 
-import cdp4s.domain.Operations
+import cats.Monad
+import cats.syntax.flatMap._
+import cats.syntax.functor._
+import cdp4s.domain.Operation
+import cdp4s.domain.extensions
 import cdp4s.domain.extensions.element
 import cdp4s.domain.extensions.keys
 import cdp4s.domain.extensions.mouse
 import cdp4s.domain.model.Runtime
-import freestyle.free._
 
-/**
-  * Based on https://github.com/GoogleChrome/puppeteer/blob/master/lib/ElementHandle.js
-  */
 final case class ElementHandle(
   executionContextId: Runtime.ExecutionContextId,
-  remoteObject: Runtime.RemoteObject
+  remoteObject: Runtime.RemoteObject,
 ) {
 
-  def focus[F[_]](implicit O: Operations[F]): FreeS[F, Unit] = element.focus(this)
+  def isVisible[F[_]: Monad](implicit op: Operation[F]): F[Boolean] = for {
+    visible <- extensions.selector.isVisible(this)
+  } yield visible
 
-  def hover[F[_]](implicit O: Operations[F]): FreeS[F, Unit] = for {
-    (x, y) <- element.visibleCenter(this)
+  def focus[F[_]: Monad](implicit op: Operation[F]): F[Unit] = element.focus(this)
+
+  // https://github.com/GoogleChrome/puppeteer/blob/v1.13.0/lib/JSHandle.js#L237
+  def hover[F[_]: Monad](implicit op: Operation[F]): F[Unit] = for {
+    _ <- element.scrollIntoViewIfNeeded(this)
+    (x, y) <- element.clickablePoint(this)
     _ <- mouse.move(x, y)
   } yield ()
 
-  def click[F[_]](implicit O: Operations[F]): FreeS[F, Unit] = for {
-    (x, y) <- element.visibleCenter(this)
+  // https://github.com/GoogleChrome/puppeteer/blob/v1.13.0/lib/JSHandle.js#L246
+  def click[F[_]: Monad](implicit op: Operation[F]): F[Unit] = for {
+    _ <- element.scrollIntoViewIfNeeded(this)
+    (x, y) <- element.clickablePoint(this)
     _ <- mouse.click(x, y)
   } yield ()
 
-  def `type`[F[_]](text: String)(implicit O: Operations[F]): FreeS[F, Unit] = for {
+  def `type`[F[_]: Monad](text: String)(implicit op: Operation[F]): F[Unit] = for {
     _ <- focus
     _ <- keys.typeText(text)
   } yield ()

@@ -2,6 +2,7 @@ package protocol.template
 
 import protocol.chrome.ChromeProtocolDomain
 import protocol.chrome.ChromeProtocolTypeDefinition
+import protocol.template.types.ScalaChromeType
 import protocol.template.types.ScalaChromeTypeContext
 import protocol.util.StringUtils
 
@@ -66,7 +67,8 @@ final case class EventTemplate(
 
   val className: String = s"${escapeScalaVariable(domain)}Event"
   private val eventObjectTemplates = eventObjects.map { eventObject =>
-    (eventObject.name, ObjectTemplate.create(eventObject.name.capitalize, Some(className), eventObject.params))
+    val objTemplate = ObjectTemplate.create(eventObject.name.capitalize, Some(className), eventObject.params)
+    (eventObject.name, objTemplate)
   }
 
   def toLines: Seq[String] = {
