@@ -21,7 +21,7 @@ lazy val commonSettings = Seq(
     "-language:implicitConversions",
     "-unchecked",
     "-Xcheckinit",
-//    "-Xfatal-warnings",
+    "-Xfatal-warnings",
     "-Xfuture",
     "-Xlint",
     "-Yno-adapted-args",
@@ -45,13 +45,12 @@ lazy val commonSettings = Seq(
     "-Ywarn-unused"
   ),
 
-//  wartremoverErrors := Seq.empty,
-//  wartremoverErrors := Warts.allBut(Wart.Nothing),
+  wartremoverErrors ++= Warts.allBut(Wart.Any, Wart.ArrayEquals, Wart.Equals, Wart.Nothing),
 
   dependencyOverrides += "org.scala-lang" % "scala-library" % scalaVersion.value,
   dependencyOverrides += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
 
-  addCompilerPlugin("org.scalameta" % "paradise" % "3.0.0-M11" cross CrossVersion.full),
+  addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.1" cross CrossVersion.binary),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0"),
 
   fork := true,
@@ -96,7 +95,6 @@ lazy val fs2 = project.in(file("fs2"))
   .settings(moduleName := "cdp4s-fs2")
   .settings(commonSettings)
   .settings(Seq(
-    addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary),
 
     libraryDependencies ++= {
       Seq(

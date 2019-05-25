@@ -34,7 +34,7 @@ final case class Quadrilateral(
 object Quadrilateral {
   final case class Point(x: Double, y: Double)
 
-  def apply(quad: DOM.Quad): Option[Quadrilateral] = {
+  def fromDomQuad(quad: DOM.Quad): Option[Quadrilateral] = {
     val parts = quad.value.grouped(2).toList.traverse { points =>
       for {
         x <- points.headOption

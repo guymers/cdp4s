@@ -25,6 +25,7 @@ final case class WebSocketInterpreterTemplate(
       Seq("import io.circe.JsonObject"),
       Seq("import io.circe.syntax._"),
       Seq(""),
+      Seq("""@SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))"""),
       Seq("trait WebSocketInterpreter[M[_]] extends cdp4s.domain.All[M] {"),
       Seq(""),
       handlerTemplates.flatMap(t => t.toLines :+ "").indent(1),

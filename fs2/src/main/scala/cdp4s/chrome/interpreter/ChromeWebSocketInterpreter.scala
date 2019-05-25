@@ -36,6 +36,7 @@ object ChromeWebSocketInterpreter {
     client: ChromeWebSocketClient[F],
   )(implicit F: Concurrent[F], T: Timer[F]): Resource[F, ChromeWebSocketInterpreter[F]] = {
     // TODO run handlers on events
+    @SuppressWarnings(Array("org.wartremover.warts.MutableDataStructures"))
     val eventHandlers = mutable.Map.empty[Option[SessionID], mutable.Buffer[PartialFunction[Event, F[Unit]]]]
 
     val globalInterpreter = new ChromeWebSocketInterpreterImpl[F](client, None, eventHandlers)
@@ -88,6 +89,7 @@ class ChromeWebSocketInterpreterImpl[F[_]] private[interpreter] (
     override def onEvent(f: PartialFunction[Event, F[Unit]]): F[Unit] = {
       // TODO make thread safe
       F.delay {
+        @SuppressWarnings(Array("org.wartremover.warts.MutableDataStructures"))
         val buffer = eventHandlers.getOrElseUpdate(sessionId, mutable.Buffer.empty)
         buffer.append(f)
       }

@@ -29,6 +29,7 @@ final case class DomainTemplate(
       Seq(""),
       Seq("package cdp4s.domain"),
       Seq(""),
+      Seq("""@SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))"""),
       Seq(s"trait $safeName[F[_]] {"),
       commandTemplates.flatMap(_.toLines).indent(1),
       Seq("}"),

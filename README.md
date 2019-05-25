@@ -2,8 +2,8 @@ A basic Scala API for the [DevTools Protocol](https://chromedevtools.github.io/d
 allows programmatic control over a Chromium based browser.
 
 The API is exposed in the tagless final style and is
-generated from the protocol JSON schema exposed by Chromium. Currently it is tracking 
-`Chromium 74.0.3729.131`. To generate an API for a different version, run a headless Chromium in
+generated from the protocol JSON schema exposed by Chromium. Currently it is tracking
+`Chromium 74.0.3729.169`. To generate an API for a different version, run a headless Chromium in
 the backround via `chromium --remote-debugging-port=9222 --headless --disable-gpu` and store its
 protocol schema `curl -s http://localhost:9222/json/protocol > project/protocol.json`.
 

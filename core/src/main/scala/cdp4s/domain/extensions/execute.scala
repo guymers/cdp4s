@@ -30,6 +30,6 @@ object execute {
 
 }
 
-case class RuntimeExceptionDetailsException(details: ExceptionDetails) extends RuntimeException(
+final case class RuntimeExceptionDetailsException(details: ExceptionDetails) extends RuntimeException(
   s"${details.text} ${details.lineNumber}:${details.columnNumber}"
 )

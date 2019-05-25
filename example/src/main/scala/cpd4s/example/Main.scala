@@ -41,7 +41,7 @@ object Main extends IOApp {
 
   private val NumProcessors = Runtime.getRuntime.availableProcessors()
 
-  private implicit val acg: AsynchronousChannelGroup = AsynchronousChannelGroup.withThreadPool {
+  private val channelGroup: AsynchronousChannelGroup = AsynchronousChannelGroup.withThreadPool {
     Executors.newCachedThreadPool(Util.daemonThreadFactory("cpd4s-ACG"))
   }
 
@@ -74,7 +74,7 @@ object Main extends IOApp {
       if (Headless) ChromeLauncher.launchHeadless[IO](chromePath, Set.empty)
       else ChromeLauncher.launch[IO](chromePath, Set.empty)
     }
-    val chromeClient = launch.flatMap(instance => Resource.liftF(ChromeWebSocketClient[IO](instance.devToolsWebSocket)))
+    val chromeClient = launch.flatMap(instance => Resource.liftF(ChromeWebSocketClient[IO](channelGroup, instance.devToolsWebSocket)))
     val chromeInterpreter = chromeClient.flatMap(client => ChromeWebSocketInterpreter.create(client))
 
     // FIXME make the below nicer
@@ -144,6 +144,7 @@ object Main extends IOApp {
         case Some(v) => op.util.pure(v)
       }
       _ <- {
+        @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
         def untilVisible: F[Unit] = searchButton.isVisible.flatMap {
           case true => op.util.pure(())
           case false => op.util.sleep(100.milliseconds) >> untilVisible

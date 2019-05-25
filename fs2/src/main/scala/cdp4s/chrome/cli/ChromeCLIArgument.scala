@@ -6,12 +6,12 @@ import cats.data.NonEmptyList
 import cats.instances.string._
 import cats.syntax.foldable._
 
-abstract class ChromeCLIArgument(name: String, value: => Option[String]) {
+abstract class ChromeCLIArgument(val name: String, value: => Option[String]) extends Product with Serializable {
   val flag: String = name concat value.map(v => "=" concat v).getOrElse("")
 
   override val hashCode: Int = name.hashCode
   override def equals(o: Any): Boolean = o match {
-    case a: ChromeCLIArgument => a.hashCode == this.hashCode
+    case a: ChromeCLIArgument => a.name == this.name
     case _ => false
   }
 }

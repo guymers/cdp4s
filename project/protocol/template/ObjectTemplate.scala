@@ -38,6 +38,7 @@ final case class ObjectTemplate(
     }
 
     Seq(
+      Seq("""@SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))"""),
       Seq(s"final case class $safeName("),
       props.indent(1),
       Seq(")" + xtends.map(e => s" extends ${escapeScalaVariable(e)}").getOrElse("")),

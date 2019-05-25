@@ -40,7 +40,7 @@ final case class EnumTemplate(
     val itemNames = values.toVector.sorted
 
     Seq(
-      Seq(s"sealed abstract class $safeName(val value: scala.Predef.String)"),
+      Seq(s"sealed abstract class $safeName(val value: scala.Predef.String) extends Product with Serializable"),
       Seq(s"object $safeName {"),
       (
         itemNames.map { itemName =>

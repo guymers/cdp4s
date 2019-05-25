@@ -64,7 +64,7 @@ object element {
       }
     )
     // Filter out quads that have too small area to click into.
-    validQuads = (quads: Seq[cdp4s.domain.model.DOM.Quad]).map(Quadrilateral.apply).flatten.filter(_.area > 1)
+    validQuads = (quads: Seq[cdp4s.domain.model.DOM.Quad]).flatMap(Quadrilateral.fromDomQuad(_).toList).filter(_.area > 1)
     // FIXME specific error
     quad <- validQuads.headOption match {
       case None => op.util.fail[Quadrilateral](new RuntimeException("Node is either not visible or not an HTMLElement"))

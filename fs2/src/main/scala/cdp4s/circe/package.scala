@@ -14,7 +14,7 @@ import scodec.bits.ByteVector
 
 package object circe {
 
-  val parser = new JawnParser
+  private val parser = new JawnParser
 
   private val dropNullsPrinter = Printer.noSpaces.copy(dropNullValues = true)
 

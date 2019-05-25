@@ -30,6 +30,7 @@ object ChromeLauncher {
   /**
     * Launch a headless chrome process located at the given path.
     */
+  @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
   def launchHeadless[F[_]](
     path: Path,
     extraArgs: Set[ChromeCLIArgument] = Set.empty
@@ -41,6 +42,7 @@ object ChromeLauncher {
   /**
     * Launch a chrome process located at the given path.
     */
+  @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
   def launch[F[_]](
     path: Path,
     extraArgs: Set[ChromeCLIArgument] = Set.empty
@@ -67,8 +69,8 @@ object ChromeLauncher {
             case Left(DevToolsListeningRegex(uri)) => WsUri.fromStr(uri).leftMap(err => (uri, err.messageWithContext.some))
           }.compile.last // there will only be one element due to `collectFirst`
         ).flatMap {
-          case Left(_) | Right(None) => F.raiseError[WsUri](ChromeProcessException.Timeout(PROCESS_START_TIMEOUT))
-          case Right(Some(Left((uri, reason)))) => F.raiseError[WsUri](ChromeProcessException.InvalidDevToolsWebSocketUrl(uri, reason))
+          case Left(_) | Right(None) => F.raiseError[WsUri](new ChromeProcessException.Timeout(PROCESS_START_TIMEOUT))
+          case Right(Some(Left((uri, reason)))) => F.raiseError[WsUri](new ChromeProcessException.InvalidDevToolsWebSocketUrl(uri, reason))
           case Right(Some(Right(uri))) => F.pure(uri)
         }.map { uri =>
           ChromeInstance(uri)
@@ -101,7 +103,7 @@ object ChromeLauncher {
 
     F.delay(Files.isExecutable(path)).flatMap { executable =>
       if (!executable) F.raiseError {
-        ChromeProcessException.NonExecutablePath(path)
+        new ChromeProcessException.NonExecutablePath(path)
       } else F.delay {
         val hasUserDataDirArg = arguments.collectFirst {
           case ChromeCLIArgument.UserDataDir(_) => true
@@ -139,7 +141,7 @@ object ChromeLauncher {
     } >> {
       val exitValue = process.exitValue()
       if (exitValue == 0) Stream.empty
-      else Stream.raiseError(ChromeProcessException.Exit(exitValue))
+      else Stream.raiseError(new ChromeProcessException.Exit(exitValue))
     } onFinalize {
       F.delay {
         tempUserDataDir.foreach(FileHelper.deleteDirectory)
