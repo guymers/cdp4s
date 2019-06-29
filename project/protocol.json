@@ -979,11 +979,71 @@
                         "backgroundFetch",
                         "backgroundSync"
                     ]
+                },
+                {
+                    "id": "EventMetadata",
+                    "description": "A key-value pair for additional event information to pass along.",
+                    "type": "object",
+                    "properties": [
+                        {
+                            "name": "key",
+                            "type": "string"
+                        },
+                        {
+                            "name": "value",
+                            "type": "string"
+                        }
+                    ]
+                },
+                {
+                    "id": "BackgroundServiceEvent",
+                    "type": "object",
+                    "properties": [
+                        {
+                            "name": "timestamp",
+                            "description": "Timestamp of the event (in seconds).",
+                            "$ref": "Network.TimeSinceEpoch"
+                        },
+                        {
+                            "name": "origin",
+                            "description": "The origin this event belongs to.",
+                            "type": "string"
+                        },
+                        {
+                            "name": "serviceWorkerRegistrationId",
+                            "description": "The Service Worker ID that initiated the event.",
+                            "$ref": "ServiceWorker.RegistrationID"
+                        },
+                        {
+                            "name": "service",
+                            "description": "The Background Service this event belongs to.",
+                            "$ref": "ServiceName"
+                        },
+                        {
+                            "name": "eventName",
+                            "description": "A description of the event.",
+                            "type": "string"
+                        },
+                        {
+                            "name": "instanceId",
+                            "description": "An identifier that groups related events together.",
+                            "type": "string"
+                        },
+                        {
+                            "name": "eventMetadata",
+                            "description": "A list of event-specific information.",
+                            "type": "array",
+                            "items": {
+                                "$ref": "EventMetadata"
+                            }
+                        }
+                    ]
                 }
             ],
             "commands": [
                 {
-                    "name": "enable",
+                    "name": "startObserving",
+                    "description": "Enables event updates for the service.",
                     "parameters": [
                         {
                             "name": "service",
@@ -992,7 +1052,8 @@
                     ]
                 },
                 {
-                    "name": "disable",
+                    "name": "stopObserving",
+                    "description": "Disables event updates for the service.",
                     "parameters": [
                         {
                             "name": "service",
@@ -1013,6 +1074,16 @@
                             "$ref": "ServiceName"
                         }
                     ]
+                },
+                {
+                    "name": "clearEvents",
+                    "description": "Clears all stored data for the service.",
+                    "parameters": [
+                        {
+                            "name": "service",
+                            "$ref": "ServiceName"
+                        }
+                    ]
                 }
             ],
             "events": [
@@ -1027,6 +1098,16 @@
                         {
                             "name": "service",
                             "$ref": "ServiceName"
+                        }
+                    ]
+                },
+                {
+                    "name": "backgroundServiceEventReceived",
+                    "description": "Called with all existing backgroundServiceEvents when enabled, and all new\nevents afterwards if enabled and recording.",
+                    "parameters": [
+                        {
+                            "name": "backgroundServiceEvent",
+                            "$ref": "BackgroundServiceEvent"
                         }
                     ]
                 }
@@ -2809,9 +2890,9 @@
                             }
                         },
                         {
-                            "name": "hasMore",
-                            "description": "If true, there are more entries to fetch in the given range.",
-                            "type": "boolean"
+                            "name": "returnCount",
+                            "description": "Count of returned entries from this storage. If pathFilter is empty, it\nis the count of all entries from this storage.",
+                            "type": "number"
                         }
                     ]
                 }
@@ -6617,8 +6698,8 @@
                     ]
                 },
                 {
-                    "name": "getKeyGeneratorCurrentNumber",
-                    "description": "Gets the auto increment number of an object store. Only meaningful\nwhen objectStore.autoIncrement is true.",
+                    "name": "getMetadata",
+                    "description": "Gets metadata of an object store",
                     "parameters": [
                         {
                             "name": "securityOrigin",
@@ -6638,8 +6719,13 @@
                     ],
                     "returns": [
                         {
-                            "name": "currentNumber",
-                            "description": "the current value of key generator, to become the next inserted\nkey into the object store.",
+                            "name": "entriesCount",
+                            "description": "the entries count",
+                            "type": "number"
+                        },
+                        {
+                            "name": "keyGeneratorValue",
+                            "description": "the current value of key generator, to become the next inserted\nkey into the object store. Valid if objectStore.autoIncrement\nis true.",
                             "type": "number"
                         }
                     ]
@@ -9610,7 +9696,7 @@
                 },
                 {
                     "name": "setRequestInterception",
-                    "description": "Sets the requests to intercept that match a the provided patterns and optionally resource types.",
+                    "description": "Sets the requests to intercept that match the provided patterns and optionally resource types.",
                     "experimental": true,
                     "parameters": [
                         {
@@ -9835,6 +9921,12 @@
                             "description": "Response headers if intercepted at the response stage or if redirect occurred while\nintercepting request or auth retry occurred.",
                             "optional": true,
                             "$ref": "Headers"
+                        },
+                        {
+                            "name": "requestId",
+                            "description": "If the intercepted request had a corresponding requestWillBeSent event fired for it, then\nthis requestId will be the same as the requestId present in the requestWillBeSent event.",
+                            "optional": true,
+                            "$ref": "RequestId"
                         }
                     ]
                 },
@@ -10236,6 +10328,7 @@
                         "searchForNode",
                         "searchForUAShadowDOM",
                         "captureAreaScreenshot",
+                        "showDistances",
                         "none"
                     ]
                 }
@@ -10491,16 +10584,6 @@
                         {
                             "name": "show",
                             "description": "Whether to paint size or not.",
-                            "type": "boolean"
-                        }
-                    ]
-                },
-                {
-                    "name": "setSuspended",
-                    "parameters": [
-                        {
-                            "name": "suspended",
-                            "description": "Whether overlay should be suspended and not consume any resources until resumed.",
                             "type": "boolean"
                         }
                     ]
@@ -11024,6 +11107,20 @@
                             "type": "integer"
                         }
                     ]
+                },
+                {
+                    "id": "ClientNavigationReason",
+                    "experimental": true,
+                    "type": "string",
+                    "enum": [
+                        "formSubmissionGet",
+                        "formSubmissionPost",
+                        "httpHeaderRefresh",
+                        "scriptInitiated",
+                        "metaTagRefresh",
+                        "pageBlockInterstitial",
+                        "reload"
+                    ]
                 }
             ],
             "commands": [
@@ -11236,6 +11333,19 @@
                             "description": "Manifest content.",
                             "optional": true,
                             "type": "string"
+                        }
+                    ]
+                },
+                {
+                    "name": "getInstallabilityErrors",
+                    "experimental": true,
+                    "returns": [
+                        {
+                            "name": "errors",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     ]
                 },
@@ -12044,7 +12154,7 @@
                 {
                     "name": "frameClearedScheduledNavigation",
                     "description": "Fired when frame no longer has a scheduled navigation.",
-                    "experimental": true,
+                    "deprecated": true,
                     "parameters": [
                         {
                             "name": "frameId",
@@ -12080,9 +12190,31 @@
                     "experimental": true
                 },
                 {
+                    "name": "frameRequestedNavigation",
+                    "description": "Fired when a renderer-initiated navigation is requested.\nNavigation may still be cancelled after the event is issued.",
+                    "experimental": true,
+                    "parameters": [
+                        {
+                            "name": "frameId",
+                            "description": "Id of the frame that is being navigated.",
+                            "$ref": "FrameId"
+                        },
+                        {
+                            "name": "reason",
+                            "description": "The reason for the navigation.",
+                            "$ref": "ClientNavigationReason"
+                        },
+                        {
+                            "name": "url",
+                            "description": "The destination URL for the requested navigation.",
+                            "type": "string"
+                        }
+                    ]
+                },
+                {
                     "name": "frameScheduledNavigation",
                     "description": "Fired when frame schedules a potential navigation.",
-                    "experimental": true,
+                    "deprecated": true,
                     "parameters": [
                         {
                             "name": "frameId",
@@ -12492,41 +12624,42 @@
                 {
                     "id": "InsecureContentStatus",
                     "description": "Information about insecure content on the page.",
+                    "deprecated": true,
                     "type": "object",
                     "properties": [
                         {
                             "name": "ranMixedContent",
-                            "description": "True if the page was loaded over HTTPS and ran mixed (HTTP) content such as scripts.",
+                            "description": "Always false.",
                             "type": "boolean"
                         },
                         {
                             "name": "displayedMixedContent",
-                            "description": "True if the page was loaded over HTTPS and displayed mixed (HTTP) content such as images.",
+                            "description": "Always false.",
                             "type": "boolean"
                         },
                         {
                             "name": "containedMixedForm",
-                            "description": "True if the page was loaded over HTTPS and contained a form targeting an insecure url.",
+                            "description": "Always false.",
                             "type": "boolean"
                         },
                         {
                             "name": "ranContentWithCertErrors",
-                            "description": "True if the page was loaded over HTTPS without certificate errors, and ran content such as\nscripts that were loaded with certificate errors.",
+                            "description": "Always false.",
                             "type": "boolean"
                         },
                         {
                             "name": "displayedContentWithCertErrors",
-                            "description": "True if the page was loaded over HTTPS without certificate errors, and displayed content\nsuch as images that were loaded with certificate errors.",
+                            "description": "Always false.",
                             "type": "boolean"
                         },
                         {
                             "name": "ranInsecureContentStyle",
-                            "description": "Security state representing a page that ran insecure content.",
+                            "description": "Always set to unknown.",
                             "$ref": "SecurityState"
                         },
                         {
                             "name": "displayedInsecureContentStyle",
-                            "description": "Security state representing a page that displayed insecure content.",
+                            "description": "Always set to unknown.",
                             "$ref": "SecurityState"
                         }
                     ]
@@ -12640,6 +12773,7 @@
                         {
                             "name": "insecureContentStatus",
                             "description": "Information about insecure content on the page.",
+                            "deprecated": true,
                             "$ref": "InsecureContentStatus"
                         },
                         {
@@ -12657,13 +12791,17 @@
             "experimental": true,
             "types": [
                 {
+                    "id": "RegistrationID",
+                    "type": "string"
+                },
+                {
                     "id": "ServiceWorkerRegistration",
                     "description": "ServiceWorker registration.",
                     "type": "object",
                     "properties": [
                         {
                             "name": "registrationId",
-                            "type": "string"
+                            "$ref": "RegistrationID"
                         },
                         {
                             "name": "scopeURL",
@@ -12708,7 +12846,7 @@
                         },
                         {
                             "name": "registrationId",
-                            "type": "string"
+                            "$ref": "RegistrationID"
                         },
                         {
                             "name": "scriptURL",
@@ -12760,7 +12898,7 @@
                         },
                         {
                             "name": "registrationId",
-                            "type": "string"
+                            "$ref": "RegistrationID"
                         },
                         {
                             "name": "versionId",
@@ -12791,7 +12929,7 @@
                         },
                         {
                             "name": "registrationId",
-                            "type": "string"
+                            "$ref": "RegistrationID"
                         },
                         {
                             "name": "data",
@@ -12811,7 +12949,7 @@
                         },
                         {
                             "name": "registrationId",
-                            "type": "string"
+                            "$ref": "RegistrationID"
                         },
                         {
                             "name": "tag",
@@ -13859,6 +13997,15 @@
                     ]
                 },
                 {
+                    "id": "StreamFormat",
+                    "description": "Data format of a trace. Can be either the legacy JSON format or the\nprotocol buffer format. Note that the JSON format will be deprecated soon.",
+                    "type": "string",
+                    "enum": [
+                        "json",
+                        "proto"
+                    ]
+                },
+                {
                     "id": "StreamCompression",
                     "description": "Compression type to use for traces returned via streams.",
                     "type": "string",
@@ -13949,6 +14096,12 @@
                             ]
                         },
                         {
+                            "name": "streamFormat",
+                            "description": "Trace data format to use. This only applies when using `ReturnAsStream`\ntransfer mode (defaults to `json`).",
+                            "optional": true,
+                            "$ref": "StreamFormat"
+                        },
+                        {
                             "name": "streamCompression",
                             "description": "Compression format to use. This only applies when using `ReturnAsStream`\ntransfer mode (defaults to `none`)",
                             "optional": true,
@@ -14010,37 +14163,16 @@
                             "$ref": "IO.StreamHandle"
                         },
                         {
+                            "name": "traceFormat",
+                            "description": "Trace data format of returned stream.",
+                            "optional": true,
+                            "$ref": "StreamFormat"
+                        },
+                        {
                             "name": "streamCompression",
                             "description": "Compression format of returned stream.",
                             "optional": true,
                             "$ref": "StreamCompression"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "domain": "Testing",
-            "description": "Testing domain is a dumping ground for the capabilities requires for browser or app testing that do not fit other\ndomains.",
-            "experimental": true,
-            "dependencies": [
-                "Page"
-            ],
-            "commands": [
-                {
-                    "name": "generateTestReport",
-                    "description": "Generates a report for testing.",
-                    "parameters": [
-                        {
-                            "name": "message",
-                            "description": "Message to be displayed in the report.",
-                            "type": "string"
-                        },
-                        {
-                            "name": "group",
-                            "description": "Specifies the endpoint group to deliver the report to.",
-                            "optional": true,
-                            "type": "string"
                         }
                     ]
                 }
@@ -14392,6 +14524,12 @@
                             "items": {
                                 "$ref": "HeaderEntry"
                             }
+                        },
+                        {
+                            "name": "networkId",
+                            "description": "If the intercepted request had a corresponding Network.requestWillBeSent event fired for it,\nthen this networkId will be the same as the requestId present in the requestWillBeSent event.",
+                            "optional": true,
+                            "$ref": "RequestId"
                         }
                     ]
                 },
@@ -14423,6 +14561,153 @@
                             "name": "authChallenge",
                             "description": "Details of the Authorization Challenge encountered.\nIf this is set, client should respond with continueRequest that\ncontains AuthChallengeResponse.",
                             "$ref": "AuthChallenge"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "domain": "WebAudio",
+            "description": "This domain allows inspection of Web Audio API.\nhttps://webaudio.github.io/web-audio-api/",
+            "experimental": true,
+            "types": [
+                {
+                    "id": "ContextId",
+                    "description": "Context's UUID in string",
+                    "type": "string"
+                },
+                {
+                    "id": "ContextType",
+                    "description": "Enum of BaseAudioContext types",
+                    "type": "string",
+                    "enum": [
+                        "realtime",
+                        "offline"
+                    ]
+                },
+                {
+                    "id": "ContextState",
+                    "description": "Enum of AudioContextState from the spec",
+                    "type": "string",
+                    "enum": [
+                        "suspended",
+                        "running",
+                        "closed"
+                    ]
+                },
+                {
+                    "id": "ContextRealtimeData",
+                    "description": "Fields in AudioContext that change in real-time. These are not updated\non OfflineAudioContext.",
+                    "type": "object",
+                    "properties": [
+                        {
+                            "name": "currentTime",
+                            "description": "The current context time in second in BaseAudioContext.",
+                            "optional": true,
+                            "type": "number"
+                        },
+                        {
+                            "name": "renderCapacity",
+                            "description": "The time spent on rendering graph divided by render qunatum duration,\nand multiplied by 100. 100 means the audio renderer reached the full\ncapacity and glitch may occur.",
+                            "optional": true,
+                            "type": "number"
+                        }
+                    ]
+                },
+                {
+                    "id": "BaseAudioContext",
+                    "description": "Protocol object for BaseAudioContext",
+                    "type": "object",
+                    "properties": [
+                        {
+                            "name": "contextId",
+                            "$ref": "ContextId"
+                        },
+                        {
+                            "name": "contextType",
+                            "$ref": "ContextType"
+                        },
+                        {
+                            "name": "contextState",
+                            "$ref": "ContextState"
+                        },
+                        {
+                            "name": "realtimeData",
+                            "optional": true,
+                            "$ref": "ContextRealtimeData"
+                        },
+                        {
+                            "name": "callbackBufferSize",
+                            "description": "Platform-dependent callback buffer size.",
+                            "type": "number"
+                        },
+                        {
+                            "name": "maxOutputChannelCount",
+                            "description": "Number of output channels supported by audio hardware in use.",
+                            "type": "number"
+                        },
+                        {
+                            "name": "sampleRate",
+                            "description": "Context sample rate.",
+                            "type": "number"
+                        }
+                    ]
+                }
+            ],
+            "commands": [
+                {
+                    "name": "enable",
+                    "description": "Enables the WebAudio domain and starts sending context lifetime events."
+                },
+                {
+                    "name": "disable",
+                    "description": "Disables the WebAudio domain."
+                },
+                {
+                    "name": "getRealtimeData",
+                    "description": "Fetch the realtime data from the registered contexts.",
+                    "parameters": [
+                        {
+                            "name": "contextId",
+                            "$ref": "ContextId"
+                        }
+                    ],
+                    "returns": [
+                        {
+                            "name": "realtimeData",
+                            "$ref": "ContextRealtimeData"
+                        }
+                    ]
+                }
+            ],
+            "events": [
+                {
+                    "name": "contextCreated",
+                    "description": "Notifies that a new BaseAudioContext has been created.",
+                    "parameters": [
+                        {
+                            "name": "context",
+                            "$ref": "BaseAudioContext"
+                        }
+                    ]
+                },
+                {
+                    "name": "contextDestroyed",
+                    "description": "Notifies that existing BaseAudioContext has been destroyed.",
+                    "parameters": [
+                        {
+                            "name": "contextId",
+                            "$ref": "ContextId"
+                        }
+                    ]
+                },
+                {
+                    "name": "contextChanged",
+                    "description": "Notifies that existing BaseAudioContext has changed some properties (id stays the same)..",
+                    "parameters": [
+                        {
+                            "name": "context",
+                            "$ref": "BaseAudioContext"
                         }
                     ]
                 }
@@ -14756,6 +15041,15 @@
                 {
                     "name": "enable",
                     "description": "Enables debugger for the given page. Clients should not assume that the debugging has been\nenabled until the result for this command is received.",
+                    "parameters": [
+                        {
+                            "name": "maxScriptsCacheSize",
+                            "description": "The maximum size in bytes of collected scripts (not referenced by other heap objects)\nthe debugger can hold. Puts no limit if paramter is omitted.",
+                            "experimental": true,
+                            "optional": true,
+                            "type": "number"
+                        }
+                    ],
                     "returns": [
                         {
                             "name": "debuggerId",
@@ -16609,6 +16903,24 @@
                     ]
                 },
                 {
+                    "id": "PrivatePropertyDescriptor",
+                    "description": "Object private field descriptor.",
+                    "experimental": true,
+                    "type": "object",
+                    "properties": [
+                        {
+                            "name": "name",
+                            "description": "Private property name.",
+                            "type": "string"
+                        },
+                        {
+                            "name": "value",
+                            "description": "The value associated with the private property.",
+                            "$ref": "RemoteObject"
+                        }
+                    ]
+                },
+                {
                     "id": "CallArgument",
                     "description": "Represents function call argument. Either remote object id `objectId`, primitive `value`,\nunserializable primitive value or neither of (for undefined) them should be specified.",
                     "type": "object",
@@ -17160,6 +17472,16 @@
                             }
                         },
                         {
+                            "name": "privateProperties",
+                            "description": "Object private properties.",
+                            "experimental": true,
+                            "optional": true,
+                            "type": "array",
+                            "items": {
+                                "$ref": "PrivatePropertyDescriptor"
+                            }
+                        },
+                        {
                             "name": "exceptionDetails",
                             "description": "Exception details.",
                             "optional": true,
@@ -17438,7 +17760,7 @@
                         },
                         {
                             "name": "stackTrace",
-                            "description": "Stack trace captured when the call was made.",
+                            "description": "Stack trace captured when the call was made. The async stack chain is automatically reported for\nthe following call types: `assert`, `error`, `trace`, `warning`. For other types the async call\nchain can be retrieved using `Debugger.getStackTrace` and `stackTrace.parentId` field.",
                             "optional": true,
                             "$ref": "StackTrace"
                         },
