@@ -1,8 +1,8 @@
 import java.io.File
 import java.nio.file.Files
 
-val catsVersion = "1.6.0"
-val catsEffectVersion = "1.3.0"
+val catsVersion = "1.6.1"
+val catsEffectVersion = "1.3.1"
 val circeVersion = "0.11.1"
 
 lazy val commonSettings = Seq(
@@ -50,8 +50,8 @@ lazy val commonSettings = Seq(
   dependencyOverrides += "org.scala-lang" % "scala-library" % scalaVersion.value,
   dependencyOverrides += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
 
-  addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.1" cross CrossVersion.binary),
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0"),
+  addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3" cross CrossVersion.binary),
+  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
 
   fork := true,
 
@@ -77,7 +77,7 @@ lazy val core = project.in(file("core"))
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
 
-      "org.scalatest" %% "scalatest" % "3.0.7" % "test",
+      "org.scalatest" %% "scalatest" % "3.0.8" % Test,
     ),
 
     sourceGenerators in Compile += Def.task[Seq[File]] {
@@ -99,8 +99,8 @@ lazy val fs2 = project.in(file("fs2"))
     libraryDependencies ++= {
       Seq(
         "com.spinoco" %% "fs2-http" % "0.4.1",
-        "co.fs2" %% "fs2-core" % "1.0.4",
-        "co.fs2" %% "fs2-io" % "1.0.4",
+        "co.fs2" %% "fs2-core" % "1.0.5",
+        "co.fs2" %% "fs2-io" % "1.0.5",
 
         "org.typelevel" %% "cats-core" % catsVersion,
 
