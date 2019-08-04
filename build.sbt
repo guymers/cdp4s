@@ -2,7 +2,7 @@ import java.io.File
 import java.nio.file.Files
 
 val catsVersion = "1.6.1"
-val catsEffectVersion = "1.3.1"
+val catsEffectVersion = "1.4.0"
 val circeVersion = "0.11.1"
 
 lazy val commonSettings = Seq(
@@ -47,8 +47,8 @@ lazy val commonSettings = Seq(
 
   wartremoverErrors ++= Warts.allBut(Wart.Any, Wart.ArrayEquals, Wart.Equals, Wart.Nothing),
 
-  dependencyOverrides += "org.scala-lang" % "scala-library" % scalaVersion.value,
-  dependencyOverrides += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+  dependencyOverrides += scalaOrganization.value % "scala-library" % scalaVersion.value,
+  dependencyOverrides += scalaOrganization.value % "scala-reflect" % scalaVersion.value,
 
   addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3" cross CrossVersion.binary),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),

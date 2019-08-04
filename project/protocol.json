@@ -977,7 +977,9 @@
                     "type": "string",
                     "enum": [
                         "backgroundFetch",
-                        "backgroundSync"
+                        "backgroundSync",
+                        "pushMessaging",
+                        "notifications"
                     ]
                 },
                 {
@@ -1190,6 +1192,7 @@
                         "midiSysex",
                         "notifications",
                         "paymentHandler",
+                        "periodicBackgroundSync",
                         "protectedMediaIdentifier",
                         "sensors",
                         "videoCapture",
@@ -2902,6 +2905,28 @@
             "domain": "Cast",
             "description": "A domain for interacting with Cast, Presentation API, and Remote Playback API\nfunctionalities.",
             "experimental": true,
+            "types": [
+                {
+                    "id": "Sink",
+                    "type": "object",
+                    "properties": [
+                        {
+                            "name": "name",
+                            "type": "string"
+                        },
+                        {
+                            "name": "id",
+                            "type": "string"
+                        },
+                        {
+                            "name": "session",
+                            "description": "Text describing the current session. Present only if there is an active\nsession on the sink.",
+                            "optional": true,
+                            "type": "string"
+                        }
+                    ]
+                }
+            ],
             "commands": [
                 {
                     "name": "enable",
@@ -2955,10 +2980,10 @@
                     "description": "This is fired whenever the list of available sinks changes. A sink is a\ndevice or a software surface that you can cast to.",
                     "parameters": [
                         {
-                            "name": "sinkNames",
+                            "name": "sinks",
                             "type": "array",
                             "items": {
-                                "type": "string"
+                                "$ref": "Sink"
                             }
                         }
                     ]
@@ -6121,6 +6146,18 @@
                     ]
                 },
                 {
+                    "name": "setTimezoneOverride",
+                    "description": "Overrides default host system timezone with the specified one.",
+                    "experimental": true,
+                    "parameters": [
+                        {
+                            "name": "timezoneId",
+                            "description": "The timezone identifier. If empty, disables the override and\nrestores default host system timezone.",
+                            "type": "string"
+                        }
+                    ]
+                },
+                {
                     "name": "setVisibleSize",
                     "description": "Resizes the frame/viewport of the page. Note that this does not affect the frame's container\n(e.g. browser window). Can be used to produce screenshots of the specified size. Not supported\non Android.",
                     "experimental": true,
@@ -8206,7 +8243,9 @@
                     "type": "string",
                     "enum": [
                         "Strict",
-                        "Lax"
+                        "Lax",
+                        "Extended",
+                        "None"
                     ]
                 },
                 {
@@ -8615,6 +8654,12 @@
                         {
                             "name": "fromServiceWorker",
                             "description": "Specifies that the request was served from the ServiceWorker.",
+                            "optional": true,
+                            "type": "boolean"
+                        },
+                        {
+                            "name": "fromPrefetchCache",
+                            "description": "Specifies that the request was served from the prefetch cache.",
                             "optional": true,
                             "type": "boolean"
                         },
@@ -10350,6 +10395,12 @@
                             "name": "nodeId",
                             "description": "Id of the node to get highlight object for.",
                             "$ref": "DOM.NodeId"
+                        },
+                        {
+                            "name": "includeDistance",
+                            "description": "Whether to include distance info.",
+                            "optional": true,
+                            "type": "boolean"
                         }
                     ],
                     "returns": [
@@ -12272,6 +12323,23 @@
                     ]
                 },
                 {
+                    "name": "downloadWillBegin",
+                    "description": "Fired when page is about to start a download.",
+                    "experimental": true,
+                    "parameters": [
+                        {
+                            "name": "frameId",
+                            "description": "Id of the frame that caused download to begin.",
+                            "$ref": "FrameId"
+                        },
+                        {
+                            "name": "url",
+                            "description": "URL of the resource being downloaded.",
+                            "type": "string"
+                        }
+                    ]
+                },
+                {
                     "name": "interstitialHidden",
                     "description": "Fired when interstitial page was hidden"
                 },
@@ -13291,6 +13359,16 @@
                             "name": "deviceString",
                             "description": "String description of the GPU device, if the PCI ID is not available.",
                             "type": "string"
+                        },
+                        {
+                            "name": "driverVendor",
+                            "description": "String description of the GPU driver vendor.",
+                            "type": "string"
+                        },
+                        {
+                            "name": "driverVersion",
+                            "description": "String description of the GPU driver version.",
+                            "type": "string"
                         }
                     ]
                 },
@@ -13606,6 +13684,18 @@
                             "name": "enableBeginFrameControl",
                             "description": "Whether BeginFrames for this target will be controlled via DevTools (headless chrome only,\nnot supported on MacOS yet, false by default).",
                             "experimental": true,
+                            "optional": true,
+                            "type": "boolean"
+                        },
+                        {
+                            "name": "newWindow",
+                            "description": "Whether to create a new Window or Tab (chrome-only, false by default).",
+                            "optional": true,
+                            "type": "boolean"
+                        },
+                        {
+                            "name": "background",
+                            "description": "Whether to create the target in background or foreground (chrome-only,\nfalse by default).",
                             "optional": true,
                             "type": "boolean"
                         }
@@ -14714,6 +14804,21 @@
             ]
         },
         {
+            "domain": "WebAuthn",
+            "description": "This domain allows configuring virtual authenticators to test the WebAuthn\nAPI.",
+            "experimental": true,
+            "commands": [
+                {
+                    "name": "enable",
+                    "description": "Enable the WebAuthn domain and start intercepting credential storage and\nretrieval with a virtual authenticator."
+                },
+                {
+                    "name": "disable",
+                    "description": "Disable the WebAuthn domain."
+                }
+            ]
+        },
+        {
             "domain": "Console",
             "description": "This domain is deprecated - use Runtime or Log instead.",
             "deprecated": true,
@@ -15376,6 +15481,28 @@
                     ]
                 },
                 {
+                    "name": "setInstrumentationBreakpoint",
+                    "description": "Sets instrumentation breakpoint.",
+                    "parameters": [
+                        {
+                            "name": "instrumentation",
+                            "description": "Instrumentation name.",
+                            "type": "string",
+                            "enum": [
+                                "beforeScriptExecution",
+                                "beforeScriptWithSourceMapExecution"
+                            ]
+                        }
+                    ],
+                    "returns": [
+                        {
+                            "name": "breakpointId",
+                            "description": "Id of the created breakpoint for further reference.",
+                            "$ref": "BreakpointId"
+                        }
+                    ]
+                },
+                {
                     "name": "setBreakpointByUrl",
                     "description": "Sets JavaScript breakpoint at given location specified either by URL or URL regex. Once this\ncommand is issued, all existing parsed scripts will have breakpoints resolved and returned in\n`locations` property. Further matching script parsing will result in subsequent\n`breakpointResolved` events issued. This logical breakpoint will survive page reloads.",
                     "parameters": [
@@ -15646,16 +15773,17 @@
                             "description": "Pause reason.",
                             "type": "string",
                             "enum": [
-                                "XHR",
+                                "ambiguous",
+                                "assert",
+                                "debugCommand",
                                 "DOM",
                                 "EventListener",
                                 "exception",
-                                "assert",
-                                "debugCommand",
-                                "promiseRejection",
+                                "instrumentation",
                                 "OOM",
                                 "other",
-                                "ambiguous"
+                                "promiseRejection",
+                                "XHR"
                             ]
                         },
                         {
