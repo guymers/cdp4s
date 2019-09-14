@@ -5,10 +5,29 @@ val catsVersion = "1.6.1"
 val catsEffectVersion = "1.4.0"
 val circeVersion = "0.11.1"
 
+val warnUnused = Seq(
+  "explicits",
+  "implicits",
+  "imports",
+  "locals",
+  "params",
+  "patvars",
+  "privates",
+)
+
+def filterScalacConsoleOpts(options: Seq[String]) = {
+  options.filterNot { opt =>
+    opt == "-Xfatal-warnings" ||
+    opt.startsWith("-Ywarn-") ||
+    opt.startsWith("-W")
+  }
+}
+
 lazy val commonSettings = Seq(
   name := "cdp4s",
-  scalaVersion := "2.12.8",
-  crossScalaVersions := Seq("2.11.12", scalaVersion.value),
+  scalaVersion := "2.12.10",
+  crossScalaVersions := Seq(scalaVersion.value),
+  licenses ++= Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
 
   // https://tpolecat.github.io/2017/04/25/scalac-flags.html
   scalacOptions ++= Seq(
@@ -21,29 +40,34 @@ lazy val commonSettings = Seq(
     "-language:implicitConversions",
     "-unchecked",
     "-Xcheckinit",
-    "-Xfatal-warnings",
-    "-Xfuture",
-    "-Xlint",
-    "-Yno-adapted-args",
-    "-Ypartial-unification",
-    "-Ywarn-dead-code",
-    "-Ywarn-inaccessible",
-    "-Ywarn-infer-any",
-    "-Ywarn-nullary-override",
-    "-Ywarn-nullary-unit",
-    "-Ywarn-numeric-widen",
-    "-Ywarn-unused",
-    "-Ywarn-value-discard"
+    "-Xlint:_",
+    //"-Xfatal-warnings",
   ),
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, minor)) if minor >= 12 => Seq("-Ywarn-extra-implicit")
-    case _ => Seq.empty
-  }),
+    case Some((2, minor)) if minor <= 12 => Seq(
+      "-Xfuture",
+      "-Yno-adapted-args",
+      "-Ypartial-unification",
 
-  scalacOptions in (Compile, console) --= Seq(
-    "-Xfatal-warnings",
-    "-Ywarn-unused"
-  ),
+      "-Ywarn-dead-code",
+      "-Ywarn-extra-implicit",
+      "-Ywarn-infer-any",
+      "-Ywarn-nullary-override",
+      "-Ywarn-nullary-unit",
+      "-Ywarn-numeric-widen",
+      "-Ywarn-value-discard"
+    ) ++ warnUnused.map(o => s"-Ywarn-unused:$o")
+    case _ => Seq(
+      "-Wdead-code",
+      "-Wextra-implicit",
+      "-Wnumeric-widen",
+      "-Woctal-literal",
+      "-Wself-implicit",
+      "-Wvalue-discard",
+    ) ++ warnUnused.map(o => s"-Wunused:$o")
+  }),
+  scalacOptions in (Compile, console) ~= filterScalacConsoleOpts,
+  scalacOptions in (Test, console) ~= filterScalacConsoleOpts,
 
   wartremoverErrors ++= Warts.allBut(Wart.Any, Wart.ArrayEquals, Wart.Equals, Wart.Nothing),
 
