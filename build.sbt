@@ -3,7 +3,7 @@ import java.nio.file.Files
 
 val catsVersion = "1.6.1"
 val catsEffectVersion = "1.4.0"
-val circeVersion = "0.11.1"
+val circeVersion = "0.11.2"
 
 val warnUnused = Seq(
   "explicits",
@@ -101,7 +101,7 @@ lazy val core = project.in(file("core"))
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
 
-      "org.scalatest" %% "scalatest" % "3.0.8" % Test,
+      "org.scalatest" %% "scalatest" % "3.1.0" % Test,
     ),
 
     sourceGenerators in Compile += Def.task[Seq[File]] {

@@ -5,6 +5,6 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-parser" % "0.8.0",
 )
 
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.1")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.6.1")
 
-addSbtPlugin("org.wartremover" % "sbt-wartremover" % "2.4.2")
+addSbtPlugin("org.wartremover" % "sbt-wartremover" % "2.4.3")
