@@ -16,5 +16,21 @@ jobs:
         with:
           java-version: ${{ matrix.java }}
 
+      - name: Cache ivy
+        uses: actions/cache@v1
+        with:
+          path: ~/.ivy/cache
+          key: v2-${{ runner.os }}-ivy-${{ hashFiles('project/build.properties') }}-${{ hashFiles('**/*.sbt') }}
+          restore-keys: |
+            v2-${{ runner.os }}-ivy-
+
+      - name: Cache coursier
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/coursier
+          key: v2-${{ runner.os }}-coursier-${{ hashFiles('project/build.properties') }}-${{ hashFiles('**/*.sbt') }}
+          restore-keys: |
+            v2-${{ runner.os }}-coursier-
+
       - name: Test
         run: sbt test
