@@ -1,0 +1,37 @@
+name: Test
+
+on: [ pull_request, push ]
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        java: [ 8, 11 ]
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Setup Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ matrix.java }}
+
+      - name: Cache ivy
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/coursier
+          key: v1-${{ runner.os }}-ivy-${{ hashFiles('project/build.properties') }}-${{ hashFiles('**/*.sbt') }}
+          restore-keys: |
+            v1-${{ runner.os }}-ivy-
+
+      - name: Cache coursier
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/coursier
+          key: v1-${{ runner.os }}-coursier-${{ hashFiles('project/build.properties') }}-${{ hashFiles('**/*.sbt') }}
+          restore-keys: |
+            v1-${{ runner.os }}-coursier-
+
+      - name: Test
+        run: sbt test
