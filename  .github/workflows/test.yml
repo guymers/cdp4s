@@ -1,6 +1,5 @@
 name: Test
-
-on: [ pull_request, push ]
+on: [ push, pull_request ]
 
 jobs:
   build:
@@ -16,22 +15,6 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: ${{ matrix.java }}
-
-      - name: Cache ivy
-        uses: actions/cache@v1
-        with:
-          path: ~/.cache/coursier
-          key: v1-${{ runner.os }}-ivy-${{ hashFiles('project/build.properties') }}-${{ hashFiles('**/*.sbt') }}
-          restore-keys: |
-            v1-${{ runner.os }}-ivy-
-
-      - name: Cache coursier
-        uses: actions/cache@v1
-        with:
-          path: ~/.cache/coursier
-          key: v1-${{ runner.os }}-coursier-${{ hashFiles('project/build.properties') }}-${{ hashFiles('**/*.sbt') }}
-          restore-keys: |
-            v1-${{ runner.os }}-coursier-
 
       - name: Test
         run: sbt test
