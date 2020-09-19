@@ -3,6 +3,7 @@ package cdp4s.domain.extensions
 import cats.Monad
 import cats.syntax.flatMap._
 import cats.syntax.functor._
+import cats.syntax.show._
 import cdp4s.domain.Operation
 import cdp4s.domain.model.Runtime
 import cdp4s.domain.model.Runtime.ExceptionDetails
@@ -31,5 +32,5 @@ object execute {
 }
 
 final case class RuntimeExceptionDetailsException(details: ExceptionDetails) extends RuntimeException(
-  s"${details.text} ${details.lineNumber}:${details.columnNumber}"
+  show"${details.text} ${details.lineNumber}:${details.columnNumber}"
 )

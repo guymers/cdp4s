@@ -2,7 +2,7 @@ package cdp4s.chrome
 
 import cdp4s.domain.model.Target.SessionID
 import io.circe.JsonObject
-import io.circe.ObjectEncoder
+import io.circe.Encoder
 import io.circe.generic.semiauto.deriveEncoder
 
 final case class ChromeRequest(
@@ -13,5 +13,5 @@ final case class ChromeRequest(
 )
 
 object ChromeRequest {
-  implicit val encoder: ObjectEncoder[ChromeRequest] = deriveEncoder
+  implicit val encoder: Encoder.AsObject[ChromeRequest] = deriveEncoder
 }

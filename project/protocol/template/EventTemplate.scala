@@ -35,7 +35,7 @@ final case class EventsTemplate(
       sortedTemplates.sortBy(_.className).zipWithNext.map { case (template, next) =>
         s"${template.className}.decoders.mapValues(_.map(e => e : Event))" + (if (next.isDefined) " ++" else "")
       }.indent(2),
-      Seq("  }"),
+      Seq("  }.toMap"),
       Seq("}"),
       Seq(""),
       sortedTemplates.flatMap(_.toLines)

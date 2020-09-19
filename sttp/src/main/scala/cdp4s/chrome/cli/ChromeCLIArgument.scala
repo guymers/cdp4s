@@ -3,7 +3,6 @@ package cdp4s.chrome.cli
 import java.nio.file.Path
 
 import cats.data.NonEmptyList
-import cats.instances.string._
 import cats.syntax.foldable._
 
 abstract class ChromeCLIArgument(val name: String, value: => Option[String]) extends Product with Serializable {
@@ -28,7 +27,7 @@ object ChromeCLIArgument {
   case object DisableExtensions extends ChromeCLIArgument("--disable-extensions", None)
   final case class DisableFeatures(features: NonEmptyList[String]) extends ChromeCLIArgument(
     "--disable-features",
-    Some(features.mkString_("", ",", ""))
+    Some(features.mkString_(","))
   )
   case object DisableHangMonitor extends ChromeCLIArgument("--disable-hang-monitor", None)
   case object DisableIpcFloodingProtection extends ChromeCLIArgument("--disable-ipc-flooding-protection", None)
@@ -39,7 +38,7 @@ object ChromeCLIArgument {
   case object EnableAutomation extends ChromeCLIArgument("--enable-automation", None)
   final case class EnableFeatures(features: NonEmptyList[String]) extends ChromeCLIArgument(
     "--enable-features",
-    Some(features.mkString_("", ",", ""))
+    Some(features.mkString_(","))
   )
   final case class ForceColorProfile(profile: String) extends ChromeCLIArgument("--force-color-profile", Some(profile))
   case object Headless extends ChromeCLIArgument("--headless", None)

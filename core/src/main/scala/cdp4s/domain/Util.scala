@@ -2,6 +2,7 @@ package cdp4s.domain
 
 import scala.concurrent.duration.FiniteDuration
 
+// TODO remove
 trait Util[F[_]] {
   def sleep(duration: FiniteDuration): F[Unit]
 

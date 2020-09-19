@@ -91,7 +91,7 @@ class ChromeWebSocketInterpreterImpl[F[_]] private[interpreter] (
       F.delay {
         @SuppressWarnings(Array("org.wartremover.warts.MutableDataStructures"))
         val buffer = eventHandlers.getOrElseUpdate(sessionId, mutable.Buffer.empty)
-        buffer.append(f)
+        val _ = buffer.append(f)
       }
     }
 

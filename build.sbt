@@ -1,9 +1,11 @@
 import java.io.File
 import java.nio.file.Files
 
-val catsVersion = "1.6.1"
-val catsEffectVersion = "1.4.0"
-val circeVersion = "0.11.2"
+val catsVersion = "2.2.0"
+val catsEffectVersion = "2.2.0"
+val circeVersion = "0.13.0"
+val fs2Version = "2.4.4"
+val sttpVersion = "3.0.0-RC4"
 
 val warnUnused = Seq(
   "explicits",
@@ -23,10 +25,13 @@ def filterScalacConsoleOpts(options: Seq[String]) = {
   }
 }
 
+val Scala212 = "2.12.12"
+val Scala213 = "2.13.3"
+
 lazy val commonSettings = Seq(
   name := "cdp4s",
-  scalaVersion := "2.12.12",
-  crossScalaVersions := Seq(scalaVersion.value),
+  scalaVersion := Scala212,
+  crossScalaVersions := Seq(Scala212, Scala213),
   licenses ++= Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
 
   // https://tpolecat.github.io/2017/04/25/scalac-flags.html
@@ -40,12 +45,12 @@ lazy val commonSettings = Seq(
     "-language:implicitConversions",
     "-unchecked",
     "-Xcheckinit",
-    "-Xlint:_",
     //"-Xfatal-warnings",
   ),
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, minor)) if minor <= 12 => Seq(
       "-Xfuture",
+      "-Xlint:_",
       "-Yno-adapted-args",
       "-Ypartial-unification",
 
@@ -58,11 +63,11 @@ lazy val commonSettings = Seq(
       "-Ywarn-value-discard"
     ) ++ warnUnused.map(o => s"-Ywarn-unused:$o")
     case _ => Seq(
+      "-Xlint:_,-byname-implicit", // exclude byname-implicit https://github.com/scala/bug/issues/12072
       "-Wdead-code",
       "-Wextra-implicit",
       "-Wnumeric-widen",
       "-Woctal-literal",
-      "-Wself-implicit",
       "-Wvalue-discard",
     ) ++ warnUnused.map(o => s"-Wunused:$o")
   }),
@@ -74,8 +79,8 @@ lazy val commonSettings = Seq(
   dependencyOverrides += scalaOrganization.value % "scala-library" % scalaVersion.value,
   dependencyOverrides += scalaOrganization.value % "scala-reflect" % scalaVersion.value,
 
-  addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3" cross CrossVersion.binary),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.0" cross CrossVersion.full),
 
   fork := true,
 
@@ -86,7 +91,7 @@ lazy val commonSettings = Seq(
 lazy val cdp4s = project.in(file("."))
   .settings(commonSettings)
   .settings(skip in publish := true)
-  .aggregate(core, fs2, example)
+  .aggregate(core, sttp, example)
 
 lazy val protocolJsonFile = (file(".") / "project" / "protocol.json").getAbsoluteFile
 
@@ -101,7 +106,7 @@ lazy val core = project.in(file("core"))
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
 
-      "org.scalatest" %% "scalatest" % "3.1.0" % Test,
+      "org.scalatest" %% "scalatest" % "3.2.2" % Test,
     ),
 
     sourceGenerators in Compile += Def.task[Seq[File]] {
@@ -115,25 +120,20 @@ lazy val core = project.in(file("core"))
 
   ))
 
-lazy val fs2 = project.in(file("fs2"))
-  .settings(moduleName := "cdp4s-fs2")
+lazy val sttp = project.in(file("sttp"))
+  .settings(moduleName := "cdp4s-sttp")
   .settings(commonSettings)
   .settings(Seq(
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-core" % catsVersion,
 
-    libraryDependencies ++= {
-      Seq(
-        "com.spinoco" %% "fs2-http" % "0.4.1",
-        "co.fs2" %% "fs2-core" % "1.0.5",
-        "co.fs2" %% "fs2-io" % "1.0.5",
+      "io.circe" %% "circe-core" % circeVersion,
+      "io.circe" %% "circe-generic" % circeVersion,
+      "io.circe" %% "circe-parser" % circeVersion,
 
-        "org.typelevel" %% "cats-core" % catsVersion,
-
-        "io.circe" %% "circe-core" % circeVersion,
-        "io.circe" %% "circe-generic" % circeVersion,
-        "io.circe" %% "circe-parser" % circeVersion,
-      )
-    }
-
+      "co.fs2" %% "fs2-io" % fs2Version,
+      "com.softwaremill.sttp.client3" %% "fs2" % sttpVersion,
+    ),
   ))
   .dependsOn(core)
 
@@ -141,4 +141,9 @@ lazy val example = project.in(file("example"))
   .settings(moduleName := "cdp4s-example")
   .settings(commonSettings)
   .settings(skip in publish := true)
-  .dependsOn(fs2)
+  .settings(Seq(
+    libraryDependencies ++= Seq(
+      "com.softwaremill.sttp.client3" %% "async-http-client-backend-fs2" % sttpVersion,
+    ),
+  ))
+  .dependsOn(sttp)

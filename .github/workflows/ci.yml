@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         java: [ 8 ]
-        scala: [ 2.12.12 ]
+        scala: [ 2.12.12, 2.13.3 ]
 
     name: Compile java=${{ matrix.java }} scala=${{ matrix.scala }}
     steps:
@@ -41,7 +41,7 @@ jobs:
     strategy:
       matrix:
         java: [ 8 ]
-        scala: [ 2.12.12 ]
+        scala: [ 2.12.12, 2.13.3 ]
 
     name: Test java=${{ matrix.java }} scala=${{ matrix.scala }}
     steps:

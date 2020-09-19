@@ -1,7 +1,6 @@
 package cpd4s.example
 
 import java.net.URI
-import java.nio.channels.AsynchronousChannelGroup
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -13,8 +12,9 @@ import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
 import cats.Monad
-import cats.Parallel
+import cats.NonEmptyParallel
 import cats.data.Kleisli
+import cats.effect.Blocker
 import cats.effect.Concurrent
 import cats.effect.ExitCode
 import cats.effect.IO
@@ -22,11 +22,11 @@ import cats.effect.IOApp
 import cats.effect.Resource
 import cats.effect.Timer
 import cats.effect.syntax.concurrent._
-import cats.instances.string._
 import cats.syntax.either._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.option._
+import cats.syntax.parallel._
 import cats.syntax.show._
 import cdp4s.chrome.cli.ChromeLauncher
 import cdp4s.chrome.interpreter.ChromeWebSocketClient
@@ -34,23 +34,32 @@ import cdp4s.chrome.interpreter.ChromeWebSocketInterpreter
 import cdp4s.domain.Operation
 import cdp4s.domain.handles.PageHandle
 import fs2.Stream
+import fs2.internal.ThreadFactoriesExposed
+import org.asynchttpclient.DefaultAsyncHttpClientConfig
+import sttp.client3.asynchttpclient.fs2.AsyncHttpClientFs2Backend
 
 object Main extends IOApp {
 
   private val Headless = true
 
   private val NumProcessors = Runtime.getRuntime.availableProcessors()
+  private val WebSocketBufferCapacity = 1024
 
-  private val channelGroup: AsynchronousChannelGroup = AsynchronousChannelGroup.withThreadPool {
-    Executors.newCachedThreadPool(Util.daemonThreadFactory("cpd4s-ACG"))
+  private val blocker = Blocker.liftExecutorService {
+    val threadFactory = ThreadFactoriesExposed.named("blocking", daemon = true)
+    Executors.newCachedThreadPool(threadFactory)
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
-    IO.delay {
-      val errorDir = Files.createTempDirectory("cdp4s-example-errors")
-      println(show"Error directory is ${errorDir.toFile.getAbsolutePath}")
-      errorDir
-    }.flatMap { errorDir =>
+    val errorDir = Resource.liftF {
+      blocker.delay[IO, Path] {
+        val errorDir = Files.createTempDirectory("cdp4s-example-errors")
+        println(show"Error directory is ${errorDir.toFile.getAbsolutePath}")
+        errorDir
+      }
+    }
+
+    errorDir.use { errorDir =>
       stream(args, errorDir)
         .through { screenshot =>
           screenshot.evalMap { screenshot =>
@@ -61,29 +70,38 @@ object Main extends IOApp {
         }
         .compile
         .drain
-        .map(_ => ExitCode.Success)
+        .timeout(30.seconds)
+        .map((_: Unit) => ExitCode.Success)
     }
-
   }
 
   private def stream(args: List[String], errorDir: Path) = {
 
     val chromePath = Paths.get(args.headOption.getOrElse("/usr/bin/chromium"))
-    val launch = {
-      // sudo sysctl -w kernel.unprivileged_userns_clone=1
-      if (Headless) ChromeLauncher.launchHeadless[IO](chromePath, Set.empty)
-      else ChromeLauncher.launch[IO](chromePath, Set.empty)
+    val launch = { // sudo sysctl -w kernel.unprivileged_userns_clone=1
+      if (Headless) ChromeLauncher.launchHeadless[IO](blocker)(chromePath, Set.empty)
+      else ChromeLauncher.launch[IO](blocker)(chromePath, Set.empty)
     }
-    val chromeClient = launch.flatMap(instance => Resource.liftF(ChromeWebSocketClient[IO](channelGroup, instance.devToolsWebSocket)))
-    val chromeInterpreter = chromeClient.flatMap(client => ChromeWebSocketInterpreter.create(client))
+    val setup = for {
+      instance <- launch
+      backend <- AsyncHttpClientFs2Backend.resourceUsingConfig[IO](
+        new DefaultAsyncHttpClientConfig.Builder()
+          .setWebSocketMaxFrameSize(10 * 1024 * 1024)
+          .build(),
+        blocker,
+        webSocketBufferCapacity = Some(WebSocketBufferCapacity),
+      )
+      client <- Resource.liftF(ChromeWebSocketClient.create[IO](backend, instance.devToolsWebSocket, WebSocketBufferCapacity))
+      interpreter <- ChromeWebSocketInterpreter.create(client)
+    } yield interpreter
 
     // FIXME make the below nicer
-    Stream.resource(chromeInterpreter).flatMap { interpreter =>
+    Stream.resource(setup).flatMap { interpreter =>
       val programs = List(
-        Kleisli { op: Operation[IO] => takeScreenshot[IO](new URI("https://news.ycombinator.com/news"))(implicitly, op) },
-        Kleisli { op: Operation[IO] => takeScreenshot[IO](new URI("https://reddit.com"))(implicitly, op) },
-        Kleisli { op: Operation[IO] => searchGoogle[IO]("test")(implicitly, implicitly, op) },
-        Kleisli { op: Operation[IO] => searchGoogle[IO]("example")(implicitly, implicitly, op) },
+        Kleisli { op: Operation[IO] => takeScreenshot[IO](new URI("https://news.ycombinator.com/news"))(implicitly, IO.ioParallel, op) },
+        Kleisli { op: Operation[IO] => takeScreenshot[IO](new URI("https://reddit.com"))(implicitly, IO.ioParallel, op) },
+        Kleisli { op: Operation[IO] => searchGoogle[IO]("test")(implicitly, IO.ioParallel, implicitly, op) },
+        Kleisli { op: Operation[IO] => searchGoogle[IO]("example")(implicitly, IO.ioParallel, implicitly, op) },
       )
       val programStreams = Stream.emits {
         programs
@@ -103,7 +121,7 @@ object Main extends IOApp {
 
   }
 
-  private def takeScreenshot[F[_]: Concurrent](uri: URI)(implicit op: Operation[F]): F[Path] = {
+  private def takeScreenshot[F[_]: Concurrent : NonEmptyParallel](uri: URI)(implicit op: Operation[F]): F[Path] = {
     val timeout = 10.seconds
 
     for {
@@ -116,20 +134,20 @@ object Main extends IOApp {
     } yield screenshot
   }
 
-  private def searchGoogle[F[_]: Concurrent: Timer](search: String)(implicit op: Operation[F]): F[Path] = {
+  private def searchGoogle[F[_]: Concurrent : NonEmptyParallel : Timer](search: String)(implicit op: Operation[F]): F[Path] = {
     val timeout = 10.seconds
 
     for {
       _ <- initTab
 
-      optPageHandle <- PageHandle.navigate(new URI("https://google.com"), timeout)
-      pageHandle <- optPageHandle.toRight("Failed to navigate to Google").leftMap(new RuntimeException(_)).liftTo[F]
+      optPageHandle <- PageHandle.navigate(new URI("https://duckduckgo.com"), timeout)
+      pageHandle <- optPageHandle.toRight("Failed to navigate to DuckDuckGo").leftMap(new RuntimeException(_)).liftTo[F]
 
-      optSearchTextElement <- pageHandle.find("input[type='text'][title='Search']")
+      optSearchTextElement <- pageHandle.find("input[type='text'][name='q']")
       searchTextElement <- optSearchTextElement.toRight("Failed to find search input").leftMap(new RuntimeException(_)).liftTo[F]
       _ <- searchTextElement.`type`(search)
 
-      optSearchButton <- pageHandle.find("input[type='submit'][name='btnK']")
+      optSearchButton <- pageHandle.find("input[type='submit'][value='S']")
       searchButton <- optSearchButton.toRight("Failed to find search button").leftMap(new RuntimeException(_)).liftTo[F]
       _ <- {
         @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
@@ -145,30 +163,23 @@ object Main extends IOApp {
     } yield screenshot
   }
 
-  private def initTab[F[_]: Concurrent](implicit op: Operation[F]): F[Unit] = {
-    import cats.instances.list._
-    implicit val parallel: Parallel[F, F] = parallelFromConcurrent
+  private def initTab[F[_]: Monad : NonEmptyParallel](implicit op: Operation[F]): F[Unit] = for {
+    (_: Unit, _: Unit) <- (
+      op.page.enable,
+      op.runtime.enable,
+    ).parTupled
+    _: Unit <- op.emulation.setDeviceMetricsOverride(1280, 1024, 0.0D, mobile = false)
+  } yield ()
 
-    for {
-      _ <- Parallel.parSequence(List(
-        op.page.enable,
-        op.runtime.enable,
-      ))
-      _ <- op.emulation.setDeviceMetricsOverride(1280, 1024, 0.0D, mobile = false)
-    } yield ()
-  }
-
-  private def screenshotToTempFile[F[_]: Monad](implicit op: Operation[F]): F[Path] = {
-    for {
-      data <- op.page.captureScreenshot(format = cdp4s.domain.model.Page.params.Format.png.some)
-      file <- op.util.delay { _ =>
-        Files.createTempFile("cdp4s-example", ".png")
-      }
-      file <- op.util.delay { _ =>
-        Files.write(file, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
-      }
-    } yield file
-  }
+  private def screenshotToTempFile[F[_]: Monad](implicit op: Operation[F]): F[Path] = for {
+    data <- op.page.captureScreenshot(format = cdp4s.domain.model.Page.params.Format.png.some)
+    file <- op.util.delay { _ =>
+      Files.createTempFile("cdp4s-example", ".png")
+    }
+    file <- op.util.delay { _ =>
+      Files.write(file, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+    }
+  } yield file
 
   private def screenshotOnError[F[_]: Monad, T](dir: Path)(
     program: F[T]
