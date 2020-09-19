@@ -14,7 +14,7 @@ object mouse {
   } yield ()
 
   def click[F[_]: Monad](x: Double, y: Double)(implicit op: Operation[F]): F[Unit] = {
-    val button = Input.params.Button.left
+    val button = Input.MouseButton.left
 
     for {
       _ <- move(x, y)

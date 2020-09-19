@@ -6,7 +6,7 @@ import cats.effect.Resource
 import cats.syntax.functor._
 import cats.syntax.option._
 import cdp4s.domain.Operation
-import cdp4s.domain.model.Target.BrowserContextID
+import cdp4s.domain.model.Browser.BrowserContextID
 import cdp4s.domain.model.Target.SessionID
 import cdp4s.domain.model.Target.TargetID
 
@@ -20,7 +20,7 @@ object tab {
 
   def createBrowserContext[F[_] : Functor](implicit op: Operation[F]): Resource[F, BrowserContextID] = {
     val acquire = {
-      op.target.createBrowserContext
+      op.target.createBrowserContext()
     }
     def release(browserContextId: BrowserContextID): F[Unit] = {
       op.target.disposeBrowserContext(browserContextId)

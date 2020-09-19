@@ -23,6 +23,7 @@ import cats.effect.Resource
 import cats.effect.Timer
 import cats.effect.syntax.concurrent._
 import cats.instances.string._
+import cats.syntax.either._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.option._
@@ -31,7 +32,6 @@ import cdp4s.chrome.cli.ChromeLauncher
 import cdp4s.chrome.interpreter.ChromeWebSocketClient
 import cdp4s.chrome.interpreter.ChromeWebSocketInterpreter
 import cdp4s.domain.Operation
-import cdp4s.domain.handles.ElementHandle
 import cdp4s.domain.handles.PageHandle
 import fs2.Stream
 
@@ -110,10 +110,7 @@ object Main extends IOApp {
       _ <- initTab
 
       optPageHandle <- PageHandle.navigate(uri, timeout)
-      _ <- optPageHandle match {
-        case None => op.util.fail[PageHandle](new RuntimeException(show"Failed to navigate to ${uri.toString}"))
-        case Some(v) => op.util.pure(v)
-      }
+      _ <- optPageHandle.toRight(show"Failed to navigate to ${uri.toString}").leftMap(new RuntimeException(_)).liftTo[F]
 
       screenshot <- screenshotToTempFile
     } yield screenshot
@@ -126,23 +123,14 @@ object Main extends IOApp {
       _ <- initTab
 
       optPageHandle <- PageHandle.navigate(new URI("https://google.com"), timeout)
-      pageHandle <- optPageHandle match {
-        case None => op.util.fail[PageHandle](new RuntimeException(show"Failed to navigate to Google"))
-        case Some(v) => op.util.pure(v)
-      }
+      pageHandle <- optPageHandle.toRight("Failed to navigate to Google").leftMap(new RuntimeException(_)).liftTo[F]
 
       optSearchTextElement <- pageHandle.find("input[type='text'][title='Search']")
-      searchTextElement <- optSearchTextElement match {
-        case None => op.util.fail[ElementHandle](new RuntimeException("Failed to find search input"))
-        case Some(v) => op.util.pure(v)
-      }
+      searchTextElement <- optSearchTextElement.toRight("Failed to find search input").leftMap(new RuntimeException(_)).liftTo[F]
       _ <- searchTextElement.`type`(search)
 
       optSearchButton <- pageHandle.find("input[type='submit'][name='btnK']")
-      searchButton <- optSearchButton match {
-        case None => op.util.fail[ElementHandle](new RuntimeException("Failed to click search button"))
-        case Some(v) => op.util.pure(v)
-      }
+      searchButton <- optSearchButton.toRight("Failed to find search button").leftMap(new RuntimeException(_)).liftTo[F]
       _ <- {
         @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
         def untilVisible: F[Unit] = searchButton.isVisible.flatMap {

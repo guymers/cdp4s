@@ -1,0 +1,69 @@
+name: CI
+on: [ push, pull_request ]
+
+jobs:
+  compile:
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        java: [ 8 ]
+        scala: [ 2.12.12 ]
+
+    name: Compile java=${{ matrix.java }} scala=${{ matrix.scala }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ matrix.java }}
+
+      - name: Cache
+        uses: coursier/cache-action@v4
+
+      - name: Compile
+        run: sbt ++${{ matrix.scala }} compile test:compile
+
+      - name: Compress target directories
+        shell: bash
+        run: |
+          find . -type d -name target | grep -v 'project/project/target' | xargs tar cf targets.tar
+
+      - name: Upload target directories
+        uses: actions/upload-artifact@v2
+        with:
+          name: target-${{ matrix.java }}-${{ matrix.scala }}
+          path: targets.tar
+
+  test:
+    runs-on: ubuntu-18.04
+    needs: compile
+    strategy:
+      matrix:
+        java: [ 8 ]
+        scala: [ 2.12.12 ]
+
+    name: Test java=${{ matrix.java }} scala=${{ matrix.scala }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ matrix.java }}
+
+      - name: Cache
+        uses: coursier/cache-action@v4
+
+      - name: Download target directories
+        uses: actions/download-artifact@v2
+        with:
+          name: target-${{ matrix.java }}-${{ matrix.scala }}
+
+      - name: Inflate target directories
+        run: |
+          tar xf targets.tar
+          rm targets.tar
+
+      - name: Test
+        run: sbt ++${{ matrix.scala }} test

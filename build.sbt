@@ -25,7 +25,7 @@ def filterScalacConsoleOpts(options: Seq[String]) = {
 
 lazy val commonSettings = Seq(
   name := "cdp4s",
-  scalaVersion := "2.12.10",
+  scalaVersion := "2.12.12",
   crossScalaVersions := Seq(scalaVersion.value),
   licenses ++= Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
 
