@@ -4,7 +4,7 @@ import java.net.URI
 
 import scala.concurrent.duration._
 
-import cats.Monad
+import cats.MonadError
 import cats.effect.Concurrent
 import cats.effect.Resource
 import cats.effect.syntax.concurrent._
@@ -71,7 +71,9 @@ final case class PageHandle(
 ) {
   import cdp4s.domain.extensions
 
-  def find[F[_]: Monad](selector: String)(implicit op: Operation[F]): F[Option[ElementHandle]] = for {
+  def find[F[_]](
+    selector: String
+  )(implicit F: MonadError[F, Throwable], op: Operation[F]): F[Option[ElementHandle]] = for {
     element <- extensions.selector.find(executionContextId, selector)
   } yield element
 

@@ -1,15 +1,15 @@
 package protocol.template
 
+import cats.data.NonEmptyVector
 import protocol.chrome.ChromeProtocolDomain
 import protocol.chrome.ChromeProtocolTypeDefinition
-import protocol.template.types.ScalaChromeType
 import protocol.template.types.ScalaChromeTypeContext
 import protocol.util.StringUtils
 
 object EventsTemplate {
 
-  def create(domains: Seq[ChromeProtocolDomain]): EventsTemplate = {
-    val templates = domains.map(EventTemplate.create)
+  def create(domains: Vector[ChromeProtocolDomain]): EventsTemplate = {
+    val templates = domains.flatMap(EventTemplate.create)
 
     EventsTemplate(templates)
   }
@@ -17,49 +17,50 @@ object EventsTemplate {
 }
 
 final case class EventsTemplate(
-  templates: Seq[EventTemplate],
+  templates: Vector[EventTemplate],
 ) {
 
   private val sortedTemplates = templates.sortBy(_.className)
 
-  def toLines: Seq[String] = {
-    Seq(
-      Seq("/** Generated from Chromium /json/protocol */"),
-      Seq(""),
-      Seq("package cdp4s.domain.event"),
-      Seq(""),
-      Seq("sealed trait Event"),
-      Seq(""),
-      Seq("object Event {"),
-      Seq("  val decoders: Map[String, io.circe.Decoder[Event]] = {"),
+  def toLines: Lines = {
+    Lines(
+      Line("/** Generated from Chromium /json/protocol */"),
+      Line(""),
+      Line("package cdp4s.domain.event"),
+      Line(""),
+      Line("sealed trait Event"),
+      Line(""),
+      Line("object Event {"),
+      Line("  val decoders: Map[String, io.circe.Decoder[Event]] = {"),
       sortedTemplates.sortBy(_.className).zipWithNext.map { case (template, next) =>
         s"${template.className}.decoders.mapValues(_.map(e => e : Event))" + (if (next.isDefined) " ++" else "")
       }.indent(2),
-      Seq("  }.toMap"),
-      Seq("}"),
-      Seq(""),
+      Line("  }.toMap"),
+      Line("}"),
+      Line(""),
       sortedTemplates.flatMap(_.toLines)
-    ).flatten
+    )
   }
 }
 
 object EventTemplate {
 
-  def create(domain: ChromeProtocolDomain): EventTemplate = {
-    val events = domain.events.getOrElse(Seq.empty)
-    val eventObjects = events.map { event =>
-      val params = event.parameters.getOrElse(Seq.empty)
-      EventObject(event.name, params)
-    }
+  def create(domain: ChromeProtocolDomain): Option[EventTemplate] = {
+    domain.events.map { events =>
+      val eventObjects = events.map { event =>
+        val params = event.parameters.map(_.toVector).getOrElse(Vector.empty)
+        EventObject(event.name, params)
+      }
 
-    EventTemplate(domain.domain, eventObjects)
+      EventTemplate(domain.domain, eventObjects)
+    }
   }
 
 }
 
 final case class EventTemplate(
   domain: String,
-  eventObjects: Seq[EventObject],
+  eventObjects: NonEmptyVector[EventObject],
 ) {
   import StringUtils.escapeScalaVariable
 
@@ -67,35 +68,35 @@ final case class EventTemplate(
 
   val className: String = s"${escapeScalaVariable(domain)}Event"
   private val eventObjectTemplates = eventObjects.map { eventObject =>
-    val objTemplate = ObjectTemplate.create(eventObject.name.capitalize, Some(className), eventObject.params)
+    val objTemplate = ObjectTemplate.create(eventObject.name.capitalize, None, Some(className), eventObject.params)
     (eventObject.name, objTemplate)
   }
 
-  def toLines: Seq[String] = {
-    Seq(
-      Seq(s"sealed trait $className extends Event"),
-      Seq(""),
-      Seq(s"object $className {"),
-      if (eventObjectTemplates.nonEmpty) {
-        eventObjectTemplates.map(_._2).flatMap(_.toLines).indent(1),
-      } else Seq.empty,
-      Seq(
-        Seq(""),
-        Seq(s"val decoders: Map[String, io.circe.Decoder[$className]] = Map("),
-        eventObjectTemplates.zipWithNext.map { case ((eventName, eventObjectTemplate), next) =>
+  def toLines: Lines = {
+    Lines(
+      Line(s"sealed trait $className extends Event"),
+      Line(""),
+      Line(s"object $className {"),
+      eventObjectTemplates.toVector.map(_._2).flatMap(_.toLines).indent(1),
+      Lines(
+        Line(""),
+        Line(s"val decoders: Map[String, io.circe.Decoder[$className]] = Map("),
+        eventObjectTemplates.toVector.map { case (eventName, eventObjectTemplate) =>
           val eventClassName = escapeScalaVariable(eventObjectTemplate.name)
-          val line = s"""  "$domain.$eventName" -> io.circe.Decoder[$eventClassName].map(e => e : $className)"""
-          line ++ (if (next.isDefined) "," else "")
-        },
-        Seq(")"),
-      ).flatten.indent(1),
-      Seq("}"),
-      Seq(""),
-    ).flatten
+          val className = if (eventObjectTemplate.parameterTemplates.isEmpty) {
+            s"$eventClassName.type"
+          } else eventClassName
+          s""""$domain.$eventName" -> io.circe.Decoder[$className].map(e => e : $className),"""
+        }.indent(1),
+        Line(")"),
+      ).indent(1),
+      Line("}"),
+      Line(""),
+    )
   }
 }
 
 final case class EventObject(
   name: String,
-  params: Seq[ChromeProtocolTypeDefinition],
+  params: Vector[ChromeProtocolTypeDefinition],
 )

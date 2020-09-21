@@ -1,6 +1,7 @@
 package protocol.template
 package domain
 
+import cats.data.NonEmptyVector
 import protocol.chrome.ChromeProtocolDomain
 import protocol.template.types.ScalaChromeTypeContext
 import protocol.util.StringUtils
@@ -17,22 +18,22 @@ object DomainTemplate {
 
 final case class DomainTemplate(
   name: String,
-  commandTemplates: Seq[DomainCommandTemplate],
+  commandTemplates: NonEmptyVector[DomainCommandTemplate],
 ) {
   import StringUtils.escapeScalaVariable
 
-  def toLines(implicit ctx: ScalaChromeTypeContext): Seq[String] = {
+  def toLines(implicit ctx: ScalaChromeTypeContext): Lines = {
     val safeName = escapeScalaVariable(name)
 
-    Seq(
-      Seq("/** Generated from Chromium /json/protocol */"),
-      Seq(""),
-      Seq("package cdp4s.domain"),
-      Seq(""),
-      Seq("""@SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))"""),
-      Seq(s"trait $safeName[F[_]] {"),
-      commandTemplates.flatMap(_.toLines).indent(1),
-      Seq("}"),
-    ).flatten
+    Lines(
+      Line("/** Generated from Chromium /json/protocol */"),
+      Line(""),
+      Line("package cdp4s.domain"),
+      Line(""),
+      Line("""@SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))"""),
+      Line(s"trait $safeName[F[_]] {"),
+      commandTemplates.toVector.flatMap(_.toLines).indent(1),
+      Line("}"),
+    )
   }
 }

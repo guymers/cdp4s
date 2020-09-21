@@ -27,13 +27,13 @@ object ScalaChromeType {
       def optWrappers(w: List[ScalaChromeTypeWrapper]) = if (tpe.optional) ScalaChromeTypeWrapper.Optional :: w else w
 
       tpe match {
-        case any(_) => Fixed("io.circe.Json", optWrappers(wrappers))
+        case any(_) => Fixed("_root_.io.circe.Json", optWrappers(wrappers))
         case binary(_) => Fixed("scala.Array[Byte]", optWrappers(wrappers))
         case string(_) => Fixed("scala.Predef.String", optWrappers(wrappers))
         case integer(_) => Fixed("scala.Int", optWrappers(wrappers))
         case number(_) => Fixed("scala.Double", optWrappers(wrappers))
         case boolean(_) => Fixed("scala.Boolean", optWrappers(wrappers))
-        case array(items, _) => go(items, optWrappers(ScalaChromeTypeWrapper.Sequence :: wrappers))
+        case array(items, _) => go(items, optWrappers(ScalaChromeTypeWrapper.Array :: wrappers))
         case obj(properties, _) => if (properties.nonEmpty) {
           Obj(name, optWrappers(wrappers))
         } else {
@@ -60,12 +60,12 @@ object ScalaChromeType {
 sealed trait ScalaChromeTypeWrapper
 object ScalaChromeTypeWrapper {
   case object Optional extends ScalaChromeTypeWrapper
-  case object Sequence extends ScalaChromeTypeWrapper
+  case object Array extends ScalaChromeTypeWrapper
 
   def toTypeString(wrappers: Seq[ScalaChromeTypeWrapper]): String => String = str => {
     wrappers.foldRight(str) {
       case (Optional, t) => s"scala.Option[$t]"
-      case (Sequence, t) => s"scala.Seq[$t]"
+      case (Array, t) => s"scala.collection.immutable.Vector[$t]"
     }
   }
 }

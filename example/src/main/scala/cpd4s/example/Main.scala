@@ -9,19 +9,21 @@ import java.time.Instant
 import java.util.concurrent.Executors
 
 import scala.concurrent.duration._
-import scala.util.control.NonFatal
 
 import cats.Monad
 import cats.NonEmptyParallel
 import cats.data.Kleisli
 import cats.effect.Blocker
 import cats.effect.Concurrent
+import cats.effect.ContextShift
 import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.Resource
+import cats.effect.Sync
 import cats.effect.Timer
 import cats.effect.syntax.concurrent._
+import cats.syntax.applicativeError._
 import cats.syntax.either._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
@@ -98,16 +100,16 @@ object Main extends IOApp {
     // FIXME make the below nicer
     Stream.resource(setup).flatMap { interpreter =>
       val programs = List(
-        Kleisli { op: Operation[IO] => takeScreenshot[IO](new URI("https://news.ycombinator.com/news"))(implicitly, IO.ioParallel, op) },
-        Kleisli { op: Operation[IO] => takeScreenshot[IO](new URI("https://reddit.com"))(implicitly, IO.ioParallel, op) },
-        Kleisli { op: Operation[IO] => searchGoogle[IO]("test")(implicitly, IO.ioParallel, implicitly, op) },
-        Kleisli { op: Operation[IO] => searchGoogle[IO]("example")(implicitly, IO.ioParallel, implicitly, op) },
+        Kleisli { op: Operation[IO] => takeScreenshot[IO](new URI("https://news.ycombinator.com/news"))(implicitly, IO.ioParallel, implicitly, op) },
+        Kleisli { op: Operation[IO] => takeScreenshot[IO](new URI("https://reddit.com"))(implicitly, IO.ioParallel, implicitly, op) },
+        Kleisli { op: Operation[IO] => searchGoogle[IO]("test")(implicitly, IO.ioParallel, implicitly, implicitly, op) },
+        Kleisli { op: Operation[IO] => searchGoogle[IO]("example")(implicitly, IO.ioParallel, implicitly, implicitly, op) },
       )
       val programStreams = Stream.emits {
         programs
           .map { k =>
             Kleisli { op: Operation[IO] =>
-              screenshotOnError(errorDir)(k.run(op))(implicitly, op)
+              screenshotOnError(errorDir)(k.run(op))(implicitly, implicitly, op)
             }
           }
           .map { k =>
@@ -121,7 +123,9 @@ object Main extends IOApp {
 
   }
 
-  private def takeScreenshot[F[_]: Concurrent : NonEmptyParallel](uri: URI)(implicit op: Operation[F]): F[Path] = {
+  private def takeScreenshot[F[_]](
+    uri: URI
+  )(implicit F: Concurrent[F], P: NonEmptyParallel[F], CS: ContextShift[F], op: Operation[F]): F[Path] = {
     val timeout = 10.seconds
 
     for {
@@ -134,7 +138,9 @@ object Main extends IOApp {
     } yield screenshot
   }
 
-  private def searchGoogle[F[_]: Concurrent : NonEmptyParallel : Timer](search: String)(implicit op: Operation[F]): F[Path] = {
+  private def searchGoogle[F[_]](
+    search: String
+  )(implicit F: Concurrent[F], P: NonEmptyParallel[F], CS: ContextShift[F], T: Timer[F], op: Operation[F]): F[Path] = {
     val timeout = 10.seconds
 
     for {
@@ -152,8 +158,8 @@ object Main extends IOApp {
       _ <- {
         @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
         def untilVisible: F[Unit] = searchButton.isVisible.flatMap {
-          case true => op.util.pure(())
-          case false => op.util.sleep(100.milliseconds) >> untilVisible
+          case true => F.unit
+          case false => T.sleep(100.milliseconds) >> untilVisible
         }
         untilVisible.timeout(5.seconds)
       }
@@ -171,38 +177,34 @@ object Main extends IOApp {
     _: Unit <- op.emulation.setDeviceMetricsOverride(1280, 1024, 0.0D, mobile = false)
   } yield ()
 
-  private def screenshotToTempFile[F[_]: Monad](implicit op: Operation[F]): F[Path] = for {
+  private def screenshotToTempFile[F[_]](implicit F: Sync[F], CS: ContextShift[F], op: Operation[F]): F[Path] = for {
     data <- op.page.captureScreenshot(format = cdp4s.domain.model.Page.params.Format.png.some)
-    file <- op.util.delay { _ =>
+    file <- blocker.delay {
       Files.createTempFile("cdp4s-example", ".png")
     }
-    file <- op.util.delay { _ =>
+    file <- blocker.delay {
       Files.write(file, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
     }
   } yield file
 
-  private def screenshotOnError[F[_]: Monad, T](dir: Path)(
+  private def screenshotOnError[F[_], T](dir: Path)(
     program: F[T]
-  )(implicit op: Operation[F]): F[ T] = {
+  )(implicit F: Sync[F], CS: ContextShift[F], op: Operation[F]): F[ T] = {
 
-    def screenshotToDirectory(t: Throwable): F[ T] = {
+    def screenshotToDirectory(t: Throwable): F[T] = {
       for {
         data <- op.page.captureScreenshot(format = cdp4s.domain.model.Page.params.Format.png.some)
-        file <- op.util.delay { _ =>
+        file <- blocker.delay {
           Files.createTempFile(dir, "error", ".png")
         }
-        _ <- op.util.delay { _ =>
+        _ <- blocker.delay {
           Files.write(file, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
         }
-        result <- op.util.fail[T](t)
+        result <- F.raiseError[T](t)
       } yield result
     }
 
-    for {
-      result <- op.util.handleWith(program, {
-        case NonFatal(e) => screenshotToDirectory(e)
-      })
-    } yield result
+    program.handleErrorWith(screenshotToDirectory)
   }
 
 }

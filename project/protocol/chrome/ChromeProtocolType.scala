@@ -17,7 +17,7 @@ object ChromeProtocolType {
   final case class number(optional: Boolean) extends ChromeProtocolType
   final case class boolean(optional: Boolean) extends ChromeProtocolType
   final case class array(items: ChromeProtocolType, optional: Boolean) extends ChromeProtocolType
-  final case class obj(properties: Seq[ChromeProtocolTypeDefinition], optional: Boolean) extends ChromeProtocolType
+  final case class obj(properties: Vector[ChromeProtocolTypeDefinition], optional: Boolean) extends ChromeProtocolType
   final case class enum(values: Set[String], optional: Boolean) extends ChromeProtocolType
   final case class reference(domain: Option[String], ref: String, optional: Boolean) extends ChromeProtocolType
 
@@ -39,7 +39,7 @@ object ChromeProtocolType {
           case "any" => any(optional).asRight
           case "binary" => binary(optional).asRight
           case "string" =>
-            c.downField("enum").as[Option[Seq[String]]].map {
+            c.downField("enum").as[Option[Vector[String]]].map {
               case None => string(optional)
               case Some(enumValues) => enum(enumValues.toSet, optional)
             }
@@ -51,8 +51,8 @@ object ChromeProtocolType {
               array(items, optional)
             }
           case "object" =>
-            c.downField("properties").as[Option[Seq[ChromeProtocolTypeDefinition]]].map { properties =>
-              obj(properties.getOrElse(Seq.empty), optional)
+            c.downField("properties").as[Option[Vector[ChromeProtocolTypeDefinition]]].map { properties =>
+              obj(properties.getOrElse(Vector.empty), optional)
             }
           case _ => DecodingFailure(s"'$tpe' is not a valid type", c.history).asLeft
         }

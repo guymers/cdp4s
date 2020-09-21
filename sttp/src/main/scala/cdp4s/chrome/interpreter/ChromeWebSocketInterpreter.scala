@@ -8,12 +8,10 @@ import cats.effect.Concurrent
 import cats.effect.Resource
 import cats.effect.Timer
 import cats.effect.syntax.concurrent._
-import cats.syntax.applicativeError._
 import cats.syntax.functor._
 import cats.syntax.option._
 import cdp4s.domain.Events
 import cdp4s.domain.Operation
-import cdp4s.domain.Util
 import cdp4s.domain.event.Event
 import cdp4s.domain.model.Target.SessionID
 import cdp4s.interpreter.WebSocketInterpreter
@@ -75,15 +73,6 @@ class ChromeWebSocketInterpreterImpl[F[_]] private[interpreter] (
   sessionId: Option[SessionID],
   eventHandlers: mutable.Map[Option[SessionID], mutable.Buffer[PartialFunction[Event, F[Unit]]]]
 )(implicit F: Concurrent[F], T: Timer[F]) extends Operation[F] with WebSocketInterpreter[F] {
-
-  override val util: Util[F] = new Util[F] {
-    override def sleep(duration: FiniteDuration): F[Unit] = T.sleep(duration)
-    override def pure[T](v: T): F[T] = F.pure(v)
-    override def delay[T](v: Unit => T): F[T] = F.delay(v(()))
-    override def fail[T](t: Throwable): F[T] = F.raiseError(t)
-    override def handle[T](fs: F[T], f: PartialFunction[Throwable, T]): F[T] = fs.recover(f)
-    override def handleWith[T](fs: F[T], f: PartialFunction[Throwable, F[T]]): F[T] = fs.recoverWith(f)
-  }
 
   override val event: Events[F] = new Events[F] {
     override def onEvent(f: PartialFunction[Event, F[Unit]]): F[Unit] = {

@@ -1,7 +1,5 @@
 package cdp4s.domain.extensions
 
-import cats.instances.list._
-import cats.instances.option._
 import cats.syntax.traverse._
 import cdp4s.domain.model.DOM
 

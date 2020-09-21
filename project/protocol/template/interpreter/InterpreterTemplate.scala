@@ -1,6 +1,7 @@
 package protocol.template
 package interpreter
 
+import cats.data.NonEmptyVector
 import protocol.chrome.ChromeProtocolCommand
 import protocol.chrome.ChromeProtocolDomain
 import protocol.template.domain.DomainCommandTemplate
@@ -17,46 +18,43 @@ object InterpreterTemplate {
 
 final case class InterpreterTemplate(
   domain: String,
-  commands: Seq[ChromeProtocolCommand],
+  commands: NonEmptyVector[ChromeProtocolCommand],
 ) {
   import StringUtils.escapeScalaVariable
 
   private implicit val ctx: ScalaChromeTypeContext = ScalaChromeTypeContext.defaultCtx(domain)
 
-  def toLines: Seq[String] = {
-    Seq(
-      Seq(s"override val ${StringUtils.unCamelCase(domain)}: cdp4s.domain.$domain[M] = new cdp4s.domain.$domain[M] {"),
-      commands.flatMap(commandTemplate).indent(1),
-      Seq("}"),
-    ).flatten
+  def toLines: Lines = {
+    Lines(
+      Line(s"override val ${StringUtils.unCamelCase(domain)}: cdp4s.domain.$domain[M] = new cdp4s.domain.$domain[M] {"),
+      commands.toVector.flatMap(commandTemplate).indent(1),
+      Line("}"),
+    )
   }
 
-  private def commandTemplate(command: ChromeProtocolCommand): Seq[String] = {
+  private def commandTemplate(command: ChromeProtocolCommand): Lines = {
     val template = DomainCommandTemplate.create(command).copy(returnTypeConstructor = "M")
     val returnTypeCtx = ScalaChromeTypeContext.resultCtx(ctx)
     val returnTypeStr = ScalaChromeType.toTypeString(template.returnType)(returnTypeCtx)
 
-    val parameters = command.parameters.getOrElse(Seq.empty)
+    val parameters = command.parameters.map(_.toVector).getOrElse(Vector.empty)
     val params = if (parameters.isEmpty) {
-      Seq("val params = JsonObject.empty")
+      Vector("val params = JsonObject.empty")
     } else {
-      Seq(
-        Seq("val params = Map("),
-        parameters.zipWithNext.map { case (parameter, next) =>
-          val comma = if (next.isDefined) "," else ""
-          val paramName = escapeScalaVariable(parameter.name)
+      Vector("val params = Map(") ++
+      parameters.zipWithNext.map { case (parameter, next) =>
+        val comma = if (next.isDefined) "," else ""
+        val paramName = escapeScalaVariable(parameter.name)
 
-          s""""${parameter.name}" -> $paramName.asJson""" + comma
-        }.indent(1),
-        Seq(").asJsonObject"),
-      ).flatten
+        s""""${parameter.name}" -> $paramName.asJson""" + comma
+      }.indent(1) ++
+      Vector(").asJsonObject"),
     }
 
     // define a custom decoder if there is only one returned value
-    val returns = command.returns.getOrElse(Seq.empty)
-    val (customDecoder, customDecoderLines) = returns match {
-      case ret +: Seq() =>
-        val lines = Seq(
+    val (customDecoder, customDecoderLines) = command.returns match {
+      case Some(NonEmptyVector(ret, tail)) if tail.isEmpty =>
+        val lines = Vector(
           "val decoder = Decoder.instance { c =>",
           s"""  c.downField("${escapeScalaVariable(ret.name)}").as[$returnTypeStr]""",
           "}",
@@ -65,18 +63,18 @@ final case class InterpreterTemplate(
         ("(decoder)", lines)
 
       case _ =>
-        ("", Seq.empty)
+        ("", Vector.empty)
     }
 
-    template.toLines ++ Seq("= {") ++ Seq(
-      Seq(
+    template.toLines ++ Vector("= {") ++ Lines(
+      Vector(
         params,
-        Seq(""),
+        Vector(""),
         customDecoderLines,
-        Seq(s"""runCommand[$returnTypeStr]("$domain.${command.name}", params)""" + customDecoder),
+        Vector(s"""runCommand[$returnTypeStr]("$domain.${command.name}", params)""" + customDecoder),
       ).flatten.indent(1),
-      Seq("}")
-    ).flatten
+      Vector("}")
+    )
   }
 }
 

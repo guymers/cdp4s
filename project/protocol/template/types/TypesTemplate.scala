@@ -8,18 +8,18 @@ object TypesTemplate {
 
   def create(domain: ChromeProtocolDomain): TypesTemplate = {
 
-    val types = domain.types.getOrElse(Seq.empty)
-    val typeTemplates = types.map(TypeTemplate.create)
+    val types = domain.types.map(_.toVector).getOrElse(Vector.empty)
+    val typeTemplates = types.flatMap(TypeTemplate.create)
 
-    val params = domain.commands.flatMap(_.parameters).flatten
+    val params = domain.commands.toVector.flatMap(_.parameters.map(_.toVector).getOrElse(Vector.empty))
     val paramEnumTemplates = EnumTemplate.extractTemplates(params)
 
-    val resultTemplates = domain.commands.flatMap { command =>
+    val resultTemplates = domain.commands.toVector.flatMap { command =>
       command.returns match {
-        case Some(returns) if returns.length > 1 => Seq {
-          ObjectTemplate.create(s"${command.name.capitalize}Result", objExtends = None, returns)
+        case Some(returns) if returns.length > 1 => Vector {
+          ObjectTemplate.create(s"${command.name.capitalize}Result", command.description, objExtends = None, returns.toVector)
         }
-        case _ => Seq.empty
+        case _ => Vector.empty
       }
     }
 
@@ -30,34 +30,34 @@ object TypesTemplate {
 
 final case class TypesTemplate(
   domain: String,
-  typeTemplates: Seq[TypeTemplate],
-  paramEnumTemplates: Seq[EnumTemplate],
-  resultTemplates: Seq[ObjectTemplate],
+  typeTemplates: Vector[TypeTemplate],
+  paramEnumTemplates: Vector[EnumTemplate],
+  resultTemplates: Vector[ObjectTemplate],
 ) {
   import StringUtils.escapeScalaVariable
 
-  def toLines(implicit ctx: ScalaChromeTypeContext): Seq[String] = {
+  def toLines(implicit ctx: ScalaChromeTypeContext): Lines = {
     val safeDomain = escapeScalaVariable(domain)
 
-    Seq(
-      Seq("/** Generated from Chromium /json/protocol */"),
-      Seq(""),
-      Seq("package cdp4s.domain.model"),
-      Seq(""),
-      Seq(s"object $safeDomain {"),
-      Seq(
+    Lines(
+      Line("/** Generated from Chromium /json/protocol */"),
+      Line(""),
+      Line("package cdp4s.domain.model"),
+      Line(""),
+      Line(s"object $safeDomain {"),
+      Lines(
         typeTemplates.flatMap(_.toLines),
-        Seq(""),
-        Seq("object params {"),
+        Line(""),
+        Line("object params {"),
         paramEnumTemplates.flatMap(_.toLines).indent(1),
-        Seq("}"),
-        Seq(""),
-        Seq("object results {"),
+        Line("}"),
+        Line(""),
+        Line("object results {"),
         resultTemplates.flatMap(_.toLines).indent(1),
-        Seq("}"),
-      ).flatten.indent(1),
-      Seq("}"),
-    ).flatten
+        Line("}"),
+      ).indent(1),
+      Line("}"),
+    )
   }
 
 }

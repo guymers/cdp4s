@@ -5,24 +5,24 @@ import protocol.util.StringUtils
 
 object ModuleTemplate {
 
-  def create(domains: Seq[ChromeProtocolDomain]): ModuleTemplate = {
+  def create(domains: Vector[ChromeProtocolDomain]): ModuleTemplate = {
     ModuleTemplate(domains.map(_.domain))
   }
 }
 
 final case class ModuleTemplate(
-  domains: Seq[String]
+  domains: Vector[String],
 ) {
 
-  def toLines: Seq[String] = {
-    Seq(
-      Seq("/** Generated from Chromium /json/protocol */"),
-      Seq(""),
-      Seq("package cdp4s.domain"),
-      Seq(""),
-      Seq("trait All[F[_]] {"),
+  def toLines: Lines = {
+    Lines(
+      Line("/** Generated from Chromium /json/protocol */"),
+      Line(""),
+      Line("package cdp4s.domain"),
+      Line(""),
+      Line("trait All[F[_]] {"),
       domains.sorted.map(domain => s"val ${StringUtils.unCamelCase(domain)}: $domain[F]").indent(1),
-      Seq("}"),
-    ).flatten
+      Line("}"),
+    )
   }
 }

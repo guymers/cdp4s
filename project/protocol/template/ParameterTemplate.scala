@@ -21,14 +21,18 @@ final case class ParameterTemplate(
 ) {
   import StringUtils.escapeScalaVariable
 
-  def toLines(implicit ctx: ScalaChromeTypeContext): Seq[String] = {
+  val variableName: String = escapeScalaVariable(name)
+
+  def scalaDocParam: Option[String] = {
+    description.map(desc => s"@param $variableName $desc")
+  }
+
+  def parameter(implicit ctx: ScalaChromeTypeContext): String = {
     val isOptional = tpe.wrappers.headOption.collect {
       case ScalaChromeTypeWrapper.Optional => true
     }.getOrElse(false)
-    None
-    val defaultValue = if (isOptional) s" = scala.None" else ""
+    val defaultValue = if (isOptional) " = scala.None" else ""
 
-    description.map(desc => s"/** $desc */").toSeq :+
-      s"${escapeScalaVariable(name)}: ${ScalaChromeType.toTypeString(tpe)}$defaultValue"
+    s"$variableName: ${ScalaChromeType.toTypeString(tpe)}$defaultValue"
   }
 }

@@ -1,7 +1,6 @@
 package cdp4s.domain.extensions
 
 import cats.Monad
-import cats.instances.list._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.traverse._

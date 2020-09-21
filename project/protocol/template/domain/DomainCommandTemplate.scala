@@ -9,7 +9,7 @@ import protocol.util.StringUtils
 object DomainCommandTemplate {
 
   def create(command: ChromeProtocolCommand): DomainCommandTemplate = {
-    val parameters = command.parameters.getOrElse(Seq.empty)
+    val parameters = command.parameters.map(_.toVector).getOrElse(Vector.empty)
     val parameterTemplates = parameters.map(ParameterTemplate.create)
 
     DomainCommandTemplate(
@@ -25,29 +25,37 @@ object DomainCommandTemplate {
 final case class DomainCommandTemplate(
   name: String,
   description: Option[String],
-  parameterTemplates: Seq[ParameterTemplate],
+  parameterTemplates: Vector[ParameterTemplate],
   returnTypeConstructor: String,
   returnType: ScalaChromeType,
 ) {
   import StringUtils.escapeScalaVariable
 
-  def toLines(implicit ctx: ScalaChromeTypeContext): Seq[String] = {
+  def toLines(implicit ctx: ScalaChromeTypeContext): Lines = {
     val safeName = escapeScalaVariable(name)
     val parameterCtx = ScalaChromeTypeContext.parameterCtx(ctx)
     val returnTypeCtx = ScalaChromeTypeContext.resultCtx(ctx)
     val returnTypeStr = ScalaChromeType.toTypeString(returnType)(returnTypeCtx)
 
-    Seq(
-      Some(""),
-      description.map(desc => s"/** $desc */")
-    ).flatten ++ (if (parameterTemplates.isEmpty) {
-      Seq(s"def $safeName: $returnTypeConstructor[$returnTypeStr]")
-    } else Seq(
-      Seq(s"def $safeName("),
-      parameterTemplates.zipWithNext.flatMap { case (parameterTemplate, next) =>
-        parameterTemplate.toLines(parameterCtx) ++ (if (next.isDefined) Seq(",") else Seq.empty)
+    val desc = Lines(
+      Vector("/**"),
+      description.map(desc => Vector(s" * $desc", " *")).getOrElse(Vector.empty),
+      parameterTemplates.flatMap { parameterTemplate =>
+        parameterTemplate.scalaDocParam.map(v => s" * $v").toVector
+      },
+      Vector(" */"),
+    )
+
+    val method = if (parameterTemplates.isEmpty) {
+      Vector(s"def $safeName: $returnTypeConstructor[$returnTypeStr]")
+    } else Lines(
+      Vector(s"def $safeName("),
+      parameterTemplates.map { parameterTemplate =>
+        parameterTemplate.parameter(parameterCtx) concat ","
       }.indent(1),
-      Seq(s"): $returnTypeConstructor[$returnTypeStr]"),
-    ).flatten)
+      Vector(s"): $returnTypeConstructor[$returnTypeStr]"),
+    )
+
+    Vector("") ++ desc ++ method
   }
 }

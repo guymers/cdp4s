@@ -1,14 +1,15 @@
 package cdp4s.chrome
 
 import io.circe.Decoder
-import io.circe.generic.semiauto.deriveDecoder
 
 final case class ChromeResponse[T](
   id: Long,
   error: Option[ChromeError],
-  result: Option[T]
+  result: Option[T],
 )
 
 object ChromeResponse {
-  implicit def decoder[T : Decoder]: Decoder[ChromeResponse[T]] = deriveDecoder
+  implicit def decoder[T : Decoder]: Decoder[ChromeResponse[T]] = {
+    Decoder.forProduct3("id", "error", "result")(ChromeResponse.apply[T])
+  }
 }

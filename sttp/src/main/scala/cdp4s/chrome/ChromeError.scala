@@ -1,14 +1,15 @@
 package cdp4s.chrome
 
 import io.circe.Decoder
-import io.circe.generic.semiauto.deriveDecoder
 
 final case class ChromeError(
   code: Int,
   message: String,
-  data: Option[String]
+  data: Option[String],
 )
 
 object ChromeError {
-  implicit val decoder: Decoder[ChromeError] = deriveDecoder
+  implicit val decoder: Decoder[ChromeError] = {
+    Decoder.forProduct3("code", "message", "data")(ChromeError.apply)
+  }
 }

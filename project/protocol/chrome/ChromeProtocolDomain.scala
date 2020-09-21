@@ -1,17 +1,19 @@
 package protocol.chrome
 
+import cats.data.NonEmptyVector
 import io.circe.Decoder
-import io.circe.generic.semiauto.deriveDecoder
 
 final case class ChromeProtocolDomain(
   domain: String,
-  dependencies: Option[Seq[String]],
-  commands: Seq[ChromeProtocolCommand],
-  types: Option[Seq[ChromeProtocolTypeDescription]],
-  events: Option[Seq[ChromeProtocolEvent]],
-  experimental: Option[Boolean]
+  dependencies: Option[NonEmptyVector[String]],
+  commands: NonEmptyVector[ChromeProtocolCommand],
+  types: Option[NonEmptyVector[ChromeProtocolTypeDescription]],
+  events: Option[NonEmptyVector[ChromeProtocolEvent]],
+  experimental: Option[Boolean],
 )
 
 object ChromeProtocolDomain {
-  implicit val decoder: Decoder[ChromeProtocolDomain] = deriveDecoder
+  implicit val decoder: Decoder[ChromeProtocolDomain] = {
+    Decoder.forProduct6("domain", "dependencies", "commands", "types", "events", "experimental")(ChromeProtocolDomain.apply)
+  }
 }

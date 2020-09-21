@@ -1,9 +1,8 @@
 package cdp4s.domain.extensions
 
-import cats.Monad
-import cats.instances.either._
-import cats.instances.list._
+import cats.MonadError
 import cats.syntax.alternative._
+import cats.syntax.applicativeError._
 import cats.syntax.either._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
@@ -35,41 +34,41 @@ object selector {
 
   // TODO hide the default execution context in state
 
-  def find[F[_]: Monad](
+  def find[F[_]](
     executionContextId: Runtime.ExecutionContextId,
     selector: String
-  )(implicit op: Operation[F]): F[Option[ElementHandle]] = for {
+  )(implicit F: MonadError[F, Throwable], op: Operation[F]): F[Option[ElementHandle]] = for {
     remoteObject <- execute.callFunction[F](
       executionContextId,
       querySelectorFunctionDeclaration,
-      Seq(Runtime.CallArgument(Some(selector.asJson)))
+      Vector(Runtime.CallArgument(Some(selector.asJson)))
     )
     elementHandle <- {
       if (remoteObject.subtype.contains(Runtime.RemoteObject.Subtype.node)) {
-        op.util.pure { Option(ElementHandle(executionContextId, remoteObject)) }
+        F.pure { Option(ElementHandle(executionContextId, remoteObject)) }
       } else {
-        releaseObject(remoteObject).map(_ => None: Option[ElementHandle])
+        releaseObject(remoteObject).map((_: Unit) => None: Option[ElementHandle])
       }
     }
   } yield elementHandle
 
-  def findAll[F[_]: Monad](
+  def findAll[F[_]](
     executionContextId: Runtime.ExecutionContextId,
     selector: String
-  )(implicit op: Operation[F]): F[Seq[ElementHandle]] = for {
+  )(implicit F: MonadError[F, Throwable], op: Operation[F]): F[Seq[ElementHandle]] = for {
     remoteObject <- execute.callFunction[F](
       executionContextId,
       querySelectorAllFunctionDeclaration,
-      Seq(Runtime.CallArgument(Some(selector.asJson)))
+      Vector(Runtime.CallArgument(Some(selector.asJson)))
     )
 
     properties <- remoteObject.objectId match {
-      case None => op.util.pure(Seq.empty[cdp4s.domain.model.Runtime.PropertyDescriptor])
+      case None => F.pure(Vector.empty[cdp4s.domain.model.Runtime.PropertyDescriptor])
       case Some(objectId) => op.runtime.getProperties(objectId, ownProperties = Some(true)).map(_.result)
     }
 
     elementHandles <- {
-      val (releaseObjects, results) = properties.toList.flatMap { property =>
+      val (releaseObjects, results) = properties.flatMap { property =>
         property.value.map { value =>
          if (property.enumerable && value.subtype.contains(Runtime.RemoteObject.Subtype.node)) {
             ElementHandle(executionContextId, value).asRight
@@ -79,35 +78,33 @@ object selector {
         }.toList
       }.separate
 
-      releaseObjects.sequence >> op.util.pure(results)
+      releaseObjects.sequence >> F.pure(results)
     }
   } yield elementHandles
 
   // from lib/helper.js releaseObject
   private def releaseObject[F[_]](
     remoteObject: Runtime.RemoteObject
-  )(implicit op: Operation[F]): F[Unit] = {
+  )(implicit F: MonadError[F, Throwable], op: Operation[F]): F[Unit] = {
     remoteObject.objectId match {
-      case None => op.util.pure(())
+      case None => F.unit
       case Some(objectId) =>
         // Exceptions might happen in case of a page been navigated or closed.
         // Swallow these since they are harmless and we don't leak anything in this case.
-        op.util.handle(op.runtime.releaseObject(objectId), {
-          case _ => ()
-        })
+        op.runtime.releaseObject(objectId).handleError { _ => () }
     }
   }
 
-  def isVisible[F[_]: Monad](
+  def isVisible[F[_]](
     elementHandle: ElementHandle,
-  )(implicit op: Operation[F]): F[Boolean] = for {
+  )(implicit F: MonadError[F, Throwable], op: Operation[F]): F[Boolean] = for {
     result <- execute.callFunction[F](
       elementHandle.executionContextId,
       isVisibleDeclaration,
-      Seq(remoteObjectToCallArgument(elementHandle.remoteObject))
+      Vector(remoteObjectToCallArgument(elementHandle.remoteObject))
     )
     visible = result.value.flatMap(_.asBoolean).getOrElse(false)
-    _ <- releaseObject(result)
+    _ <- releaseObject(result) // TODO Resource?
   } yield visible
 
   // TODO duplicated
