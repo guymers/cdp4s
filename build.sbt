@@ -82,6 +82,10 @@ lazy val commonSettings = Seq(
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.0" cross CrossVersion.full),
 
+  addCompilerPlugin("com.github.ghik" % "silencer-plugin" % "1.7.1" cross CrossVersion.full),
+  libraryDependencies += "com.github.ghik" % "silencer-lib" % "1.7.1" % Provided cross CrossVersion.full,
+  scalacOptions += "-P:silencer:pathFilters=src_managed",
+
   fork := true,
 
   testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDF")

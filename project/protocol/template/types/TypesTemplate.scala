@@ -17,7 +17,14 @@ object TypesTemplate {
     val resultTemplates = domain.commands.toVector.flatMap { command =>
       command.returns match {
         case Some(returns) if returns.length > 1 => Vector {
-          ObjectTemplate.create(s"${command.name.capitalize}Result", command.description, objExtends = None, returns.toVector)
+          ObjectTemplate.create(
+            name = s"${command.name.capitalize}Result",
+            description = command.description,
+            deprecated = command.deprecated,
+            experimental = command.experimental,
+            objExtends = None,
+            properties = returns.toVector,
+          )
         }
         case _ => Vector.empty
       }

@@ -2,21 +2,27 @@ package protocol.template
 package types
 
 import protocol.chrome.ChromeProtocolTypeDescription
+import protocol.chrome.Deprecated
+import protocol.chrome.Experimental
 import protocol.util.StringUtils
 
 object NewTypeTemplate {
 
-  def create(typeDesc: ChromeProtocolTypeDescription): NewTypeTemplate = {
-    val tpe = ScalaChromeType.chromeTypeToScala(typeDesc.id, typeDesc.`type`)
-
-    NewTypeTemplate(typeDesc.id, typeDesc.description, tpe)
-  }
+  def create(typeDesc: ChromeProtocolTypeDescription): NewTypeTemplate = NewTypeTemplate(
+    name = typeDesc.id,
+    description = typeDesc.description,
+    deprecated = typeDesc.deprecated,
+    experimental = typeDesc.experimental,
+    tpe = ScalaChromeType.chromeTypeToScala(typeDesc.id, typeDesc.`type`),
+  )
 }
 
 final case class NewTypeTemplate(
   name: String,
   description: Option[String],
-  tpe: ScalaChromeType
+  deprecated: Deprecated,
+  experimental: Experimental,
+  tpe: ScalaChromeType,
 ) {
   import StringUtils.escapeScalaVariable
 
@@ -24,8 +30,9 @@ final case class NewTypeTemplate(
     val safeName = escapeScalaVariable(name)
     val typeStr = ScalaChromeType.toTypeString(tpe)
 
+    descriptionToLines(description, Vector.empty) ++
+    annotationsToLines(deprecated, experimental) ++
     Lines(
-      descriptionToLines(description, Vector.empty),
       Line(s"final case class $safeName(value: $typeStr) extends AnyVal"),
       Line(""),
       Line(s"object $safeName {"),

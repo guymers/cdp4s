@@ -31,7 +31,14 @@ object TypeTemplate {
       case obj(properties, _) => Some {
         NonEmptyVector.fromVector(properties) match {
           case None => NewType { NewTypeTemplate.create(typeDesc) }
-          case Some(props) => Obj { ObjectTemplate.create(typeDesc.id, typeDesc.description, objExtends = None, props.toVector) }
+          case Some(props) => Obj { ObjectTemplate.create(
+            name = typeDesc.id,
+            description = typeDesc.description,
+            deprecated = typeDesc.deprecated,
+            experimental = typeDesc.experimental,
+            objExtends = None,
+            properties = props.toVector,
+          ) }
         }
       }
 

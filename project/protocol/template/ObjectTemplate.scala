@@ -1,6 +1,8 @@
 package protocol.template
 
 import protocol.chrome.ChromeProtocolTypeDefinition
+import protocol.chrome.Deprecated
+import protocol.chrome.Experimental
 import protocol.template.types.ScalaChromeTypeContext
 
 object ObjectTemplate {
@@ -8,14 +10,18 @@ object ObjectTemplate {
   def create(
     name: String,
     description: Option[String],
+    deprecated: Deprecated,
+    experimental: Experimental,
     objExtends: Option[String],
     properties: Vector[ChromeProtocolTypeDefinition],
   ): ObjectTemplate = ObjectTemplate(
-    name,
-    description,
+    name = name,
+    description = description,
+    deprecated = deprecated,
+    experimental = experimental,
     objExtends,
-    properties.map(ParameterTemplate.create),
-    EnumTemplate.extractTemplates(properties),
+    parameterTemplates = properties.map(ParameterTemplate.create),
+    enumTemplates = EnumTemplate.extractTemplates(properties),
   )
 
 }
@@ -23,6 +29,8 @@ object ObjectTemplate {
 final case class ObjectTemplate(
   name: String,
   description: Option[String],
+  deprecated: Deprecated,
+  experimental: Experimental,
   `extends`: Option[String],
   parameterTemplates: Vector[ParameterTemplate],
   enumTemplates: Vector[EnumTemplate],
@@ -33,9 +41,8 @@ final case class ObjectTemplate(
 
   def toLines(implicit ctx: ScalaChromeTypeContext): Vector[String] = {
 
-    if (parameterTemplates.isEmpty) {
+    val body = if (parameterTemplates.isEmpty) {
       Lines(
-        descriptionToLines(description, parameterTemplates.flatMap(_.scalaDocParam)),
         Line(s"object $safeName" + `extends`.map(e => s" extends ${escapeScalaVariable(e)}").getOrElse("") + " {"),
         enumTemplates.flatMap(_.toLines).indent(1),
         Vector(
@@ -57,7 +64,6 @@ final case class ObjectTemplate(
       }
 
       Lines(
-        descriptionToLines(description, parameterTemplates.flatMap(_.scalaDocParam)),
         Line("""@SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))"""),
         Line(s"final case class $safeName("),
         props.indent(1),
@@ -74,5 +80,9 @@ final case class ObjectTemplate(
         Line(""),
       )
     }
+
+    descriptionToLines(description, parameterTemplates.flatMap(_.scalaDocParam)) ++
+      annotationsToLines(deprecated, experimental) ++
+      body
   }
 }

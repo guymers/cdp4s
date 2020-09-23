@@ -15,8 +15,8 @@ object EnumTemplate {
 
     typeDefs
       .collect {
-        case ChromeProtocolTypeDefinition(name, _, enum(values, _)) => Map(name -> values)
-        case ChromeProtocolTypeDefinition(name, _, array(enum(values, _), _)) => Map(name -> values)
+        case ChromeProtocolTypeDefinition(name, _, _, _, enum(values, _)) => Map(name -> values)
+        case ChromeProtocolTypeDefinition(name, _, _, _, array(enum(values, _), _)) => Map(name -> values)
       }
       .combineAll
       .toVector

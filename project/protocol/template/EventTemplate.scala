@@ -3,6 +3,8 @@ package protocol.template
 import cats.data.NonEmptyVector
 import protocol.chrome.ChromeProtocolDomain
 import protocol.chrome.ChromeProtocolTypeDefinition
+import protocol.chrome.Deprecated
+import protocol.chrome.Experimental
 import protocol.template.types.ScalaChromeTypeContext
 import protocol.util.StringUtils
 
@@ -49,7 +51,7 @@ object EventTemplate {
     domain.events.map { events =>
       val eventObjects = events.map { event =>
         val params = event.parameters.map(_.toVector).getOrElse(Vector.empty)
-        EventObject(event.name, params)
+        EventObject(event.name, event.deprecated, event.experimental, params)
       }
 
       EventTemplate(domain.domain, eventObjects)
@@ -68,7 +70,14 @@ final case class EventTemplate(
 
   val className: String = s"${escapeScalaVariable(domain)}Event"
   private val eventObjectTemplates = eventObjects.map { eventObject =>
-    val objTemplate = ObjectTemplate.create(eventObject.name.capitalize, None, Some(className), eventObject.params)
+    val objTemplate = ObjectTemplate.create(
+      name = eventObject.name.capitalize,
+      description = None,
+      deprecated = eventObject.deprecated,
+      experimental = eventObject.experimental,
+      objExtends = Some(className),
+      properties = eventObject.params,
+    )
     (eventObject.name, objTemplate)
   }
 
@@ -98,5 +107,7 @@ final case class EventTemplate(
 
 final case class EventObject(
   name: String,
+  deprecated: Deprecated,
+  experimental: Experimental,
   params: Vector[ChromeProtocolTypeDefinition],
 )

@@ -1,5 +1,8 @@
 package protocol
 
+import protocol.chrome.Deprecated
+import protocol.chrome.Experimental
+
 package object template {
 
   type Lines = Vector[String]
@@ -33,4 +36,15 @@ package object template {
       Vector("  */"),
     )
   }
+
+  def annotationsToLines(deprecated: Deprecated, experimental: Experimental): Lines = Vector(
+    experimental match {
+      case Experimental.True => Some("@cdp4s.annotation.experimental")
+      case Experimental.False => None
+    },
+    deprecated match {
+      case Deprecated.True => Some("""@scala.deprecated("", "")""")
+      case Deprecated.False => None
+    },
+  ).flatten
 }
