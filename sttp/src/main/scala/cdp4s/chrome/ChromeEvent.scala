@@ -8,7 +8,7 @@ import io.circe.DecodingFailure
 
 final case class ChromeEvent(
   method: String,
-  params: Event,
+  event: Event,
   sessionId: Option[SessionID]
 )
 
@@ -20,8 +20,8 @@ object ChromeEvent {
       eventDecoder <- Event.decoders.get(method).toRight(
         DecodingFailure(show"No decoder for event '$method'", c.history)
       )
-      params <- c.downField("params").as(eventDecoder)
+      event <- c.downField("params").as(eventDecoder)
       sessionId <- c.downField("sessionId").as[Option[SessionID]]
-    } yield ChromeEvent(method, params, sessionId)
+    } yield ChromeEvent(method, event, sessionId)
   }
 }

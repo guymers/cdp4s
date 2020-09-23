@@ -4,7 +4,7 @@ import cats.syntax.show._
 import io.circe.Decoder
 import sttp.model.Uri
 
-sealed abstract case class WsUri(uri: Uri)
+sealed abstract case class WsUri(value: Uri)
 
 object WsUri {
 

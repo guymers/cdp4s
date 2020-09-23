@@ -38,9 +38,9 @@ final case class EventsTemplate(
         s"${template.className}.decoders.mapValues(_.map(e => e : Event))" + (if (next.isDefined) " ++" else "")
       }.indent(2),
       Line("  }.toMap"),
-      Line("}"),
       Line(""),
-      sortedTemplates.flatMap(_.toLines)
+      sortedTemplates.flatMap(_.toLines).indent(1),
+      Line("}"),
     )
   }
 }
@@ -68,7 +68,7 @@ final case class EventTemplate(
 
   private implicit val eventCtx: ScalaChromeTypeContext = ScalaChromeTypeContext.eventCtx(domain)
 
-  val className: String = s"${escapeScalaVariable(domain)}Event"
+  val className: String = escapeScalaVariable(domain)
   private val eventObjectTemplates = eventObjects.map { eventObject =>
     val objTemplate = ObjectTemplate.create(
       name = eventObject.name.capitalize,

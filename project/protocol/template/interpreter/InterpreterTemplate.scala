@@ -26,7 +26,7 @@ final case class InterpreterTemplate(
 
   def toLines: Lines = {
     Lines(
-      Line(s"override val ${StringUtils.unCamelCase(domain)}: cdp4s.domain.$domain[M] = new cdp4s.domain.$domain[M] {"),
+      Line(s"override implicit val ${StringUtils.unCamelCase(domain)}: cdp4s.domain.$domain[M] = new cdp4s.domain.$domain[M] {"),
       commands.toVector.flatMap(commandTemplate).indent(1),
       Line("}"),
     )
@@ -39,23 +39,22 @@ final case class InterpreterTemplate(
 
     val parameters = command.parameters.map(_.toVector).getOrElse(Vector.empty)
     val params = if (parameters.isEmpty) {
-      Vector("val params = JsonObject.empty")
+      Vector("val params = _root_.io.circe.JsonObject.empty")
     } else {
-      Vector("val params = Map(") ++
-      parameters.zipWithNext.map { case (parameter, next) =>
-        val comma = if (next.isDefined) "," else ""
+      Vector("val params = _root_.io.circe.JsonObject(") ++
+      parameters.map { parameter =>
         val paramName = escapeScalaVariable(parameter.name)
 
-        s""""${parameter.name}" -> $paramName.asJson""" + comma
+        s""""${parameter.name}" -> $paramName.asJson,"""
       }.indent(1) ++
-      Vector(").asJsonObject"),
+      Vector(")"),
     }
 
     // define a custom decoder if there is only one returned value
     val (customDecoder, customDecoderLines) = command.returns match {
       case Some(NonEmptyVector(ret, tail)) if tail.isEmpty =>
         val lines = Vector(
-          "val decoder = Decoder.instance { c =>",
+          "val decoder = _root_.io.circe.Decoder.instance { c =>",
           s"""  c.downField("${escapeScalaVariable(ret.name)}").as[$returnTypeStr]""",
           "}",
           "",

@@ -16,7 +16,7 @@ import cats.syntax.either._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.option._
-import cdp4s.chrome.ChromeProcessException
+import cdp4s.chrome.ProcessException
 import cdp4s.util.FileHelper
 import cdp4s.ws.WsUri
 import fs2.Stream
@@ -68,8 +68,8 @@ object ChromeLauncher {
           case Left(DevToolsListeningRegex(uri)) => WsUri.fromStr(uri).leftMap(err => (uri, err.some))
         }.compile.last // there will only be one element due to `collectFirst`
       ).flatMap {
-        case Left(_) | Right(None) => F.raiseError[WsUri](new ChromeProcessException.Timeout(PROCESS_START_TIMEOUT))
-        case Right(Some(Left((uri, reason)))) => F.raiseError[WsUri](new ChromeProcessException.InvalidDevToolsWebSocketUrl(uri, reason))
+        case Left(_) | Right(None) => F.raiseError[WsUri](new ProcessException.Timeout(PROCESS_START_TIMEOUT))
+        case Right(Some(Left((uri, reason)))) => F.raiseError[WsUri](new ProcessException.InvalidDevToolsWebSocketUrl(uri, reason))
         case Right(Some(Right(uri))) => F.pure(uri)
       }
     }
@@ -120,7 +120,7 @@ object ChromeLauncher {
       Files.isExecutable(path)
     }
     _: Unit <- if (!executable) F.raiseError {
-      new ChromeProcessException.NonExecutablePath(path)
+      new ProcessException.NonExecutablePath(path)
     } else F.unit
     flags = arguments.map(_.flag).toList.sorted
     processBuilder = new ProcessBuilder(path.toFile.getAbsolutePath +: flags: _*)
@@ -145,7 +145,7 @@ object ChromeLauncher {
     } >> {
       val exitValue = process.exitValue()
       if (exitValue == 0) Stream.empty
-      else Stream.raiseError(new ChromeProcessException.Exit(exitValue))
+      else Stream.raiseError(new ProcessException.Exit(exitValue))
     }
     s.compile.drain
   }

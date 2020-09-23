@@ -6,6 +6,9 @@ val catsEffectVersion = "2.2.0"
 val circeVersion = "0.13.0"
 val fs2Version = "2.4.4"
 val sttpVersion = "3.0.0-RC4"
+val scalaTestVersion = "3.2.2"
+
+lazy val IntegrationTest = config("it") extend Test
 
 val warnUnused = Seq(
   "explicits",
@@ -74,7 +77,8 @@ lazy val commonSettings = Seq(
   scalacOptions in (Compile, console) ~= filterScalacConsoleOpts,
   scalacOptions in (Test, console) ~= filterScalacConsoleOpts,
 
-  wartremoverErrors ++= Warts.allBut(Wart.Any, Wart.ArrayEquals, Wart.Equals, Wart.Nothing),
+  wartremoverErrors := Seq.empty,
+  wartremoverErrors in (Compile, compile) ++= Warts.allBut(Wart.Any, Wart.ArrayEquals, Wart.Equals, Wart.Nothing),
 
   dependencyOverrides += scalaOrganization.value % "scala-library" % scalaVersion.value,
   dependencyOverrides += scalaOrganization.value % "scala-reflect" % scalaVersion.value,
@@ -95,7 +99,7 @@ lazy val commonSettings = Seq(
 lazy val cdp4s = project.in(file("."))
   .settings(commonSettings)
   .settings(skip in publish := true)
-  .aggregate(core, sttp, example)
+  .aggregate(core, sttp, tests, example)
 
 lazy val protocolJsonFile = (file(".") / "project" / "protocol.json").getAbsoluteFile
 
@@ -110,7 +114,7 @@ lazy val core = project.in(file("core"))
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
 
-      "org.scalatest" %% "scalatest" % "3.2.2" % Test,
+      "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
     ),
 
     sourceGenerators in Compile += Def.task[Seq[File]] {
@@ -121,7 +125,6 @@ lazy val core = project.in(file("core"))
       filesToWrite.keySet.map(_.getParent).foreach(p => Files.createDirectories(p))
       filesToWrite.map { case (path, lines) => FileUtils.writeLinesToFile(path, lines).toFile }.toSeq
     }.taskValue
-
   ))
 
 lazy val sttp = project.in(file("sttp"))
@@ -141,13 +144,23 @@ lazy val sttp = project.in(file("sttp"))
   ))
   .dependsOn(core)
 
-lazy val example = project.in(file("example"))
-  .settings(moduleName := "cdp4s-example")
+lazy val tests = project.in(file("tests"))
+  .settings(moduleName := "cdp4s-tests")
   .settings(commonSettings)
   .settings(skip in publish := true)
   .settings(Seq(
     libraryDependencies ++= Seq(
       "com.softwaremill.sttp.client3" %% "async-http-client-backend-fs2" % sttpVersion,
+
+      "org.scalatest" %% "scalatest" % scalaTestVersion,
     ),
   ))
+  .configs(IntegrationTest)
+  .settings(Defaults.itSettings)
   .dependsOn(sttp)
+
+lazy val example = project.in(file("example"))
+  .settings(moduleName := "cdp4s-example")
+  .settings(commonSettings)
+  .settings(skip in publish := true)
+  .dependsOn(tests)

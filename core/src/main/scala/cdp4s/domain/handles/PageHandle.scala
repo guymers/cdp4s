@@ -2,17 +2,14 @@ package cdp4s.domain.handles
 
 import java.net.URI
 
-import scala.concurrent.duration._
-
+import cats.Monad
 import cats.MonadError
-import cats.effect.Concurrent
-import cats.effect.Resource
-import cats.effect.syntax.concurrent._
+import cats.NonEmptyParallel
 import cats.syntax.flatMap._
 import cats.syntax.functor._
+import cats.syntax.parallel._
 import cdp4s.domain.Operation
-import cdp4s.domain.event.PageEvent
-import cdp4s.domain.event.RuntimeEvent
+import cdp4s.domain.event.Event
 import cdp4s.domain.model.Page
 import cdp4s.domain.model.Runtime
 
@@ -23,11 +20,11 @@ object PageHandle {
     *
     * Ensure that page and runtime events are enabled before calling this method.
     */
-  def navigate[F[_]](url: URI, timeout: FiniteDuration)(implicit F: Concurrent[F], op: Operation[F]): F[Option[PageHandle]] = {
-    navigating(op.page.navigate(url.toString), timeout).map {
-      _.map { case (navigateResult, execCtxId) => PageHandle(navigateResult.frameId, execCtxId) }
-    }
-  }
+  def navigate[F[_]](
+    url: URI,
+  )(implicit F: Monad[F], P: NonEmptyParallel[F], op: Operation[F]): F[PageHandle] = for {
+    (navigateResult, execCtxId) <- navigating(op.page.navigate(url.toString))
+  } yield PageHandle(navigateResult.frameId, execCtxId)
 
   /**
     * Perform an action that is expected to navigate to another page.
@@ -36,38 +33,22 @@ object PageHandle {
     */
   def navigating[F[_], T](
     action: F[T],
-    timeout: FiniteDuration
-  )(implicit F: Concurrent[F], op: Operation[F]): F[Option[(T, Runtime.ExecutionContextId)]] = {
-    val waitForEvents = for {
-      execCtxIdFiber <- Resource.make(
-        op.event.waitForEvent({ case e: RuntimeEvent.ExecutionContextCreated => e.context.id }, timeout).start
-      )(_.cancel)
-      // puppeteer allows waiting on one of 4 events
-      contentFiber <- Resource.make(
-        op.event.waitForEvent({ case _: PageEvent.DomContentEventFired => () }, timeout).start
-      )(_.cancel)
-    } yield (execCtxIdFiber, contentFiber)
-
-    waitForEvents.use { case (execCtxIdFiber, contentFiber) =>
-      for {
-        result <- action
-        execCtxId <- execCtxIdFiber.join
-        content <- contentFiber.join
-      } yield {
-        for {
-          execCtxId <- execCtxId
-          _ <- content
-        } yield {
-          (result, execCtxId)
-        }
-      }
-    }
-  }
+  )(implicit F: Monad[F], P: NonEmptyParallel[F], op: Operation[F]): F[(T, Runtime.ExecutionContextId)] = for {
+    (executionContextCreatedF, domContentEventFiredF) <- (
+      op.event.waitForEvent({ case e: Event.Runtime.ExecutionContextCreated => e.context.id }),
+      op.event.waitForEvent({ case _: Event.Page.DomContentEventFired => () }),
+    ).parTupled
+    result <- action
+    (execCtxId, _: Unit) <- (
+      executionContextCreatedF,
+      domContentEventFiredF,
+    ).parTupled
+  } yield (result, execCtxId)
 }
 
 final case class PageHandle(
   frameId: Page.FrameId,
-  executionContextId: Runtime.ExecutionContextId
+  executionContextId: Runtime.ExecutionContextId,
 ) {
   import cdp4s.domain.extensions
 
