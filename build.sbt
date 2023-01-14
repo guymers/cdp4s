@@ -1,125 +1,147 @@
+// format: off
 import java.io.File
 import java.nio.file.Files
 
-val catsVersion = "2.2.0"
-val catsEffectVersion = "2.2.0"
-val circeVersion = "0.13.0"
-val fs2Version = "2.4.4"
-val sttpVersion = "3.0.0-RC4"
-val scalaTestVersion = "3.2.2"
+val catsVersion = "2.8.0"
+val catsEffectVersion = "3.3.14"
+val circeVersion = "0.14.3"
+val fs2Version = "3.3.0"
+val zioVersion = "2.0.5"
+val zioCatsVersion = "23.0.0.0"
 
-lazy val IntegrationTest = config("it") extend Test
+val Scala212 = "2.12.17"
+val Scala213 = "2.13.10"
+val Scala3 = "3.1.3"
 
-val warnUnused = Seq(
-  "explicits",
-  "implicits",
-  "imports",
-  "locals",
-  "params",
-  "patvars",
-  "privates",
+inThisBuild(Seq(
+  organization := "io.github.guymers",
+  homepage := Some(url("https://github.com/guymers/cdp4s")),
+  licenses := List(License.Apache2),
+  developers := List(
+    Developer("guymers", "Sam Guymer", "@guymers", url("https://github.com/guymers"))
+  ),
+  scmInfo := Some(ScmInfo(url("https://github.com/guymers/cdp4s"), "git@github.com:guymers/cdp4s.git")),
+))
+
+val IntegrationTest_ = sbt.config("it") extend Test
+val IntegrationTest = IntegrationTest_
+
+Global / excludeLintKeys ++= Set(IntegrationTest_ / fork, IntegrationTest_ / javaOptions)
+
+lazy val commonSettings = Seq(
+  scalaVersion := Scala213,
+  crossScalaVersions := Seq(Scala212, Scala213, Scala3),
+  versionScheme := Some("early-semver"),
+
+  scalacOptions ++= Seq(
+    "-deprecation",
+    "-encoding", "UTF-8",
+    "-feature",
+    "-unchecked",
+  ),
+  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, _)) => Seq(
+      "-explaintypes",
+      "-language:existentials",
+      "-language:higherKinds",
+      "-Wconf:src=src_managed/.*&cat=deprecation:silent",
+      "-Xsource:3",
+    )
+    case Some((3, _)) => Seq(
+      "-explain-types",
+      "-source:future",
+    )
+    case _ => Seq.empty
+  }),
+  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 12)) => Seq(
+      "-Xfuture",
+      "-Yno-adapted-args",
+      "-Ypartial-unification",
+    )
+    case Some((2, minor)) if minor >= 13 => Seq(
+      "-Vimplicits",
+      "-Vtype-diffs",
+      "-Wdead-code",
+      "-Wextra-implicit",
+      "-Wnonunit-statement",
+      "-Wnumeric-widen",
+      "-Woctal-literal",
+      "-Wunused:_",
+      "-Wperformance",
+      "-Wvalue-discard",
+
+      "-Xlint:_,-byname-implicit", // exclude byname-implicit https://github.com/scala/bug/issues/12072
+    )
+    case _ => Seq.empty
+  }),
+
+  libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, _)) => Seq(compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"))
+    case _ => Seq.empty
+  }),
+
+  Compile / console / scalacOptions ~= filterScalacConsoleOpts,
+  Test / console / scalacOptions ~= filterScalacConsoleOpts,
+
+  Compile / compile / wartremoverErrors := Warts.all,
+  Compile / compile / wartremoverErrors --= Seq(
+    Wart.Any,
+    Wart.ArrayEquals,
+    Wart.DefaultArguments,
+    Wart.Equals,
+    Wart.Nothing,
+    Wart.ToString,
+  ),
+  Test / compile / wartremoverErrors := Seq(
+    Wart.NonUnitStatements,
+    Wart.Null,
+    Wart.Return,
+  ),
+
+  fork := true,
+  Test / fork := false,
+  IntegrationTest / fork := true,
+  IntegrationTest / javaOptions += "-Xmx1000m",
 )
 
 def filterScalacConsoleOpts(options: Seq[String]) = {
   options.filterNot { opt =>
-    opt == "-Xfatal-warnings" ||
-    opt.startsWith("-Ywarn-") ||
-    opt.startsWith("-W")
+    opt == "-Xfatal-warnings" || opt.startsWith("-Xlint") || opt.startsWith("-W")
   }
 }
 
-val Scala212 = "2.12.12"
-val Scala213 = "2.13.3"
-
-lazy val commonSettings = Seq(
-  name := "cdp4s",
-  scalaVersion := Scala212,
-  crossScalaVersions := Seq(Scala212, Scala213),
-  licenses ++= Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
-
-  // https://tpolecat.github.io/2017/04/25/scalac-flags.html
-  scalacOptions ++= Seq(
-    "-deprecation",
-    "-encoding", "UTF-8",
-    "-explaintypes",
-    "-feature",
-    "-language:existentials",
-    "-language:higherKinds",
-    "-language:implicitConversions",
-    "-unchecked",
-    "-Xcheckinit",
-    //"-Xfatal-warnings",
+lazy val zioTestSettings = Seq(
+  libraryDependencies ++= Seq(
+    "dev.zio" %% "zio-test" % zioVersion % Test,
+    "dev.zio" %% "zio-test-sbt" % zioVersion % Test,
   ),
-  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, minor)) if minor <= 12 => Seq(
-      "-Xfuture",
-      "-Xlint:_",
-      "-Yno-adapted-args",
-      "-Ypartial-unification",
-
-      "-Ywarn-dead-code",
-      "-Ywarn-extra-implicit",
-      "-Ywarn-infer-any",
-      "-Ywarn-nullary-override",
-      "-Ywarn-nullary-unit",
-      "-Ywarn-numeric-widen",
-      "-Ywarn-value-discard"
-    ) ++ warnUnused.map(o => s"-Ywarn-unused:$o")
-    case _ => Seq(
-      "-Xlint:_,-byname-implicit", // exclude byname-implicit https://github.com/scala/bug/issues/12072
-      "-Wdead-code",
-      "-Wextra-implicit",
-      "-Wnumeric-widen",
-      "-Woctal-literal",
-      "-Wvalue-discard",
-    ) ++ warnUnused.map(o => s"-Wunused:$o")
-  }),
-  scalacOptions in (Compile, console) ~= filterScalacConsoleOpts,
-  scalacOptions in (Test, console) ~= filterScalacConsoleOpts,
-
-  wartremoverErrors := Seq.empty,
-  wartremoverErrors in (Compile, compile) ++= Warts.allBut(Wart.Any, Wart.ArrayEquals, Wart.Equals, Wart.Nothing),
-
-  dependencyOverrides += scalaOrganization.value % "scala-library" % scalaVersion.value,
-  dependencyOverrides += scalaOrganization.value % "scala-reflect" % scalaVersion.value,
-
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.0" cross CrossVersion.full),
-
-  addCompilerPlugin("com.github.ghik" % "silencer-plugin" % "1.7.1" cross CrossVersion.full),
-  libraryDependencies += "com.github.ghik" % "silencer-lib" % "1.7.1" % Provided cross CrossVersion.full,
-  scalacOptions += "-P:silencer:pathFilters=src_managed",
-
-  fork := true,
-
-  testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDF")
 )
-
 
 lazy val cdp4s = project.in(file("."))
   .settings(commonSettings)
-  .settings(skip in publish := true)
-  .aggregate(core, sttp, tests, example)
+  .settings(publish / skip := true)
+  .aggregate(core, fs2, tests, example)
 
 lazy val protocolJsonFile = (file(".") / "project" / "protocol.json").getAbsoluteFile
 
 lazy val core = project.in(file("core"))
   .settings(moduleName := "cdp4s-core")
   .settings(commonSettings)
+  .settings(zioTestSettings)
   .settings(Seq(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-core" % catsVersion,
-      "org.typelevel" %% "cats-effect" % catsEffectVersion,
+      "org.typelevel" %% "cats-effect-kernel" % catsEffectVersion,
 
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
-
-      "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
     ),
 
-    sourceGenerators in Compile += Def.task[Seq[File]] {
-      val dir = (sourceManaged in Compile).value.toPath
-      val generated = ProtocolCodeGen.generate(protocolJsonFile)
+    Compile / sourceGenerators += Def.task[Seq[File]] {
+      val scala3 = CrossVersion.partialVersion(scalaVersion.value).exists { case (v, _) => v == 3 }
+      val dir = (Compile / sourceManaged).value.toPath
+      val generated = ProtocolCodeGen.generate(protocolJsonFile, scala3)
 
       val filesToWrite = generated.map { case (path, lines) => (dir.resolve(path), lines) }
       filesToWrite.keySet.map(_.getParent).foreach(p => Files.createDirectories(p))
@@ -127,19 +149,23 @@ lazy val core = project.in(file("core"))
     }.taskValue
   ))
 
-lazy val sttp = project.in(file("sttp"))
-  .settings(moduleName := "cdp4s-sttp")
+lazy val fs2 = project.in(file("fs2"))
+  .settings(moduleName := "cdp4s-fs2")
   .settings(commonSettings)
   .settings(Seq(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-core" % catsVersion,
+      "org.typelevel" %% "cats-effect-std" % catsEffectVersion,
+      "org.typelevel" %% "cats-effect" % catsEffectVersion % Optional,
 
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
       "io.circe" %% "circe-parser" % circeVersion,
 
+      "co.fs2" %% "fs2-core" % fs2Version,
       "co.fs2" %% "fs2-io" % fs2Version,
-      "com.softwaremill.sttp.client3" %% "fs2" % sttpVersion,
+
+      "dev.zio" %% "zio" % zioVersion % Optional,
     ),
   ))
   .dependsOn(core)
@@ -147,20 +173,26 @@ lazy val sttp = project.in(file("sttp"))
 lazy val tests = project.in(file("tests"))
   .settings(moduleName := "cdp4s-tests")
   .settings(commonSettings)
-  .settings(skip in publish := true)
+  .settings(zioTestSettings)
+  .settings(publish / skip := true)
   .settings(Seq(
     libraryDependencies ++= Seq(
-      "com.softwaremill.sttp.client3" %% "async-http-client-backend-fs2" % sttpVersion,
-
-      "org.scalatest" %% "scalatest" % scalaTestVersion,
+      "org.typelevel" %% "cats-effect" % catsEffectVersion,
+      "dev.zio" %% "zio" % zioVersion,
+      "dev.zio" %% "zio-interop-cats" % zioCatsVersion,
     ),
   ))
   .configs(IntegrationTest)
   .settings(Defaults.itSettings)
-  .dependsOn(sttp)
+  .dependsOn(fs2)
 
 lazy val example = project.in(file("example"))
   .settings(moduleName := "cdp4s-example")
   .settings(commonSettings)
-  .settings(skip in publish := true)
+  .settings(publish / skip := true)
+  .settings(Seq(
+    libraryDependencies ++= Seq(
+      "dev.zio" %% "zio-streams" % zioVersion,
+    ),
+  ))
   .dependsOn(tests)

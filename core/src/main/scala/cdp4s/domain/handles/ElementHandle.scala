@@ -2,8 +2,8 @@ package cdp4s.domain.handles
 
 import cats.Monad
 import cats.MonadError
-import cats.syntax.flatMap._
-import cats.syntax.functor._
+import cats.syntax.flatMap.*
+import cats.syntax.functor.*
 import cdp4s.domain.Operation
 import cdp4s.domain.extensions
 import cdp4s.domain.extensions.element

@@ -1,49 +1,51 @@
 package cdp4s.domain.extensions
 
-import java.net.URI
-
-import scala.annotation.tailrec
-import scala.concurrent.duration._
-
-import cats.effect.IO
 import cdp4s.domain.Operation
 import cdp4s.domain.handles.PageHandle
 import cdp4s.domain.model.DOM
-import cpd4s.test.InterpreterProvided
-import org.scalatest.freespec.AsyncFreeSpec
+import cpd4s.test.InterpreterProvidedIntegrationTest
+import zio.Task
+import zio.durationInt
+import zio.interop.catz.*
+import zio.test.*
 
-trait SecurityExtensionsIntegrationTest { self: AsyncFreeSpec with InterpreterProvided =>
-  import InterpreterProvided._
+import java.net.URI
+import scala.annotation.tailrec
 
-  "security" - {
-    "does not ignore https errors" in {
-      val uri = new URI("https://self-signed.badssl.com/")
+object SecurityExtensionsIntegrationTest extends InterpreterProvidedIntegrationTest {
 
-      def program(implicit op: Operation[IO]) = for {
-        _ <- PageHandle.navigate[IO](uri).timeout(10.seconds)
-        document <- op.dom.getDocument(depth = Some(4))
-      } yield {
-        val head = findChildNode(document, List("HTML", "HEAD"))
-        assert(head.flatMap(_.childNodeCount) == Some(0))
-      }
-      interpreter.run(program(_))
-    }.unsafeToFuture()
+  override val spec = suite("SecurityExtensions")(
+    suite("security")(
+      test("does not ignore https errors") {
+        val uri = new URI("https://self-signed.badssl.com/")
 
-    "ignore https errors if requested" in {
-      val uri = new URI("https://self-signed.badssl.com/")
+        def program(implicit op: Operation[Task]) = for {
+          _ <- PageHandle.navigate[Task](uri).timeout(10.seconds)
+          document <- op.dom.getDocument(depth = Some(4))
+        } yield {
+          val head = findChildNode(document, List("HTML", "HEAD"))
+          assertTrue(head.flatMap(_.childNodeCount) == Some(0))
+        }
 
-      def program(implicit op: Operation[IO]) = for {
-        _ <- security.ignoreHTTPSErrors[IO]
-        _ <- PageHandle.navigate[IO](uri).timeout(10.seconds)
-        document <- op.dom.getDocument(depth = Some(4))
-      } yield {
-        val title = findChildNode(document, List("HTML", "HEAD", "TITLE"))
-        val value = title.flatMap(_.children).flatMap(_.find(_.nodeName == "#text")).map(_.nodeValue)
-        assert(value == Some("self-signed.badssl.com"))
-      }
-      interpreter.run(program(_))
-    }.unsafeToFuture()
-  }
+        interpreter.flatMap(_.run(program(_)))
+      },
+      test("ignore https errors if requested") {
+        val uri = new URI("https://self-signed.badssl.com/")
+
+        def program(implicit op: Operation[Task]) = for {
+          _ <- security.ignoreHTTPSErrors[Task]
+          _ <- PageHandle.navigate[Task](uri).timeout(10.seconds)
+          document <- op.dom.getDocument(depth = Some(4))
+        } yield {
+          val title = findChildNode(document, List("HTML", "HEAD", "TITLE"))
+          val value = title.flatMap(_.children).flatMap(_.find(_.nodeName == "#text")).map(_.nodeValue)
+          assertTrue(value == Some("self-signed.badssl.com"))
+        }
+
+        interpreter.flatMap(_.run(program(_)))
+      },
+    ),
+  )
 
   private def findChildNode(node: DOM.Node, path: List[String]) = {
     @tailrec

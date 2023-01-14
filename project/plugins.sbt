@@ -1,11 +1,8 @@
-// have to use version 0.8.0 because 0.9.0 updates to jawn 0.11.0 but sbt brings in jawn 0.10.4
 libraryDependencies ++= Seq(
-  "io.circe" %% "circe-core" % "0.8.0",
-  "io.circe" %% "circe-parser" % "0.8.0",
+  "io.circe" %% "circe-core" % "0.14.3",
+  "io.circe" %% "circe-parser" % "0.14.3",
 )
 
-addSbtPlugin("org.wartremover" % "sbt-wartremover" % "2.4.10")
-
-addSbtPlugin("com.dwijnand" % "sbt-dynver" % "4.1.1")
-
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.6.1")
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.6")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.6")
+addSbtPlugin("org.wartremover" % "sbt-wartremover" % "3.0.8")

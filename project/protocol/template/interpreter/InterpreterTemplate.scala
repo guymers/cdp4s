@@ -11,15 +11,15 @@ import protocol.util.StringUtils
 
 object InterpreterTemplate {
 
-  def create(domain: ChromeProtocolDomain): InterpreterTemplate = {
-    InterpreterTemplate(domain.domain, domain.commands)
+  def create(domain: ChromeProtocolDomain)(scala3: Boolean): InterpreterTemplate = {
+    InterpreterTemplate(domain.domain, domain.commands)(scala3)
   }
 }
 
 final case class InterpreterTemplate(
   domain: String,
   commands: NonEmptyVector[ChromeProtocolCommand],
-) {
+)(scala3: Boolean) {
   import StringUtils.escapeScalaVariable
 
   private implicit val ctx: ScalaChromeTypeContext = ScalaChromeTypeContext.defaultCtx(domain)
@@ -42,12 +42,12 @@ final case class InterpreterTemplate(
       Vector("val params = _root_.io.circe.JsonObject.empty")
     } else {
       Vector("val params = _root_.io.circe.JsonObject(") ++
-      parameters.map { parameter =>
-        val paramName = escapeScalaVariable(parameter.name)
+        parameters.map { parameter =>
+          val paramName = escapeScalaVariable(parameter.name)
 
-        s""""${parameter.name}" -> $paramName.asJson,"""
-      }.indent(1) ++
-      Vector(")"),
+          s""""${parameter.name}" -> $paramName.asJson,"""
+        }.indent(1) ++
+        Vector(")"),
     }
 
     // define a custom decoder if there is only one returned value
@@ -59,7 +59,7 @@ final case class InterpreterTemplate(
           "}",
           "",
         )
-        ("(decoder)", lines)
+        if (scala3) ("(using decoder)", lines) else ("(decoder)", lines)
 
       case _ =>
         ("", Vector.empty)
@@ -72,8 +72,7 @@ final case class InterpreterTemplate(
         customDecoderLines,
         Vector(s"""runCommand[$returnTypeStr]("$domain.${command.name}", params)""" + customDecoder),
       ).flatten.indent(1),
-      Vector("}")
+      Vector("}"),
     )
   }
 }
-

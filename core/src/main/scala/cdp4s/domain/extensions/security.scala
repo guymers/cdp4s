@@ -1,7 +1,7 @@
 package cdp4s.domain.extensions
 
 import cats.Monad
-import cats.syntax.functor._
+import cats.syntax.functor.*
 import cdp4s.domain.Operation
 
 object security {

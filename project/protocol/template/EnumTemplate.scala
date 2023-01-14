@@ -1,9 +1,9 @@
 package protocol.template
 
-import cats.instances.vector._
-import cats.kernel.instances.map._
-import cats.kernel.instances.set._
-import cats.syntax.foldable._
+import cats.instances.vector.*
+import cats.kernel.instances.map.*
+import cats.kernel.instances.set.*
+import cats.syntax.foldable.*
 import protocol.chrome.ChromeProtocolType
 import protocol.chrome.ChromeProtocolTypeDefinition
 import protocol.util.StringUtils

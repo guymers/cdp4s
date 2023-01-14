@@ -16,16 +16,17 @@ object TypesTemplate {
 
     val resultTemplates = domain.commands.toVector.flatMap { command =>
       command.returns match {
-        case Some(returns) if returns.length > 1 => Vector {
-          ObjectTemplate.create(
-            name = s"${command.name.capitalize}Result",
-            description = command.description,
-            deprecated = command.deprecated,
-            experimental = command.experimental,
-            objExtends = None,
-            properties = returns.toVector,
-          )
-        }
+        case Some(returns) if returns.length > 1 =>
+          Vector {
+            ObjectTemplate.create(
+              name = s"${command.name.capitalize}Result",
+              description = command.description,
+              deprecated = command.deprecated,
+              experimental = command.experimental,
+              objExtends = None,
+              properties = returns.toVector,
+            )
+          }
         case _ => Vector.empty
       }
     }
@@ -59,8 +60,10 @@ final case class TypesTemplate(
         paramEnumTemplates.flatMap(_.toLines).indent(1),
         Line("}"),
         Line(""),
-        Line("object results {"),
-        resultTemplates.flatMap(_.toLines).indent(1),
+        Line("object results {"), {
+          val _ctx = ScalaChromeTypeContext.resultsCtx(ctx)
+          resultTemplates.flatMap(_.toLines(_ctx)).indent(1)
+        },
         Line("}"),
       ).indent(1),
       Line("}"),

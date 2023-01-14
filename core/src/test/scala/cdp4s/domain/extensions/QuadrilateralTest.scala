@@ -1,12 +1,13 @@
 package cdp4s.domain.extensions
 
-import org.scalatest.freespec.AnyFreeSpec
+import zio.test.ZIOSpecDefault
+import zio.test.assertCompletes
 
-class QuadrilateralTest extends AnyFreeSpec {
+object QuadrilateralTest extends ZIOSpecDefault {
 
-  "create" - {
-    "from valid DOM.Quad data" in {
-      succeed
-    }
-  }
+  override val spec = suite("Quadrilateral")(
+    test("from valid DOM.Quad data") {
+      assertCompletes
+    },
+  )
 }

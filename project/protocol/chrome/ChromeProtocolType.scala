@@ -1,6 +1,6 @@
 package protocol.chrome
 
-import cats.syntax.either._
+import cats.syntax.either.*
 import io.circe.Decoder
 import io.circe.DecodingFailure
 

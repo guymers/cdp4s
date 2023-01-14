@@ -1,13 +1,13 @@
 package cdp4s.domain.extensions
 
-import cats.syntax.traverse._
+import cats.syntax.traverse.*
 import cdp4s.domain.model.DOM
 
 final case class Quadrilateral(
   a: Quadrilateral.Point,
   b: Quadrilateral.Point,
   c: Quadrilateral.Point,
-  d: Quadrilateral.Point
+  d: Quadrilateral.Point,
 ) {
   private val points = Array(a, b, c, d)
 
@@ -22,7 +22,7 @@ final case class Quadrilateral(
   }
 
   def middle: Quadrilateral.Point = {
-    val (x, y) = points.foldLeft((0D, 0D)) { case ((x, y), p) =>
+    val (x, y) = points.foldLeft((0d, 0d)) { case ((x, y), p) =>
       (x + p.x, y + p.y)
     }
     Quadrilateral.Point(x / 4, y / 4)

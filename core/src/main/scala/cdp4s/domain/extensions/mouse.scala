@@ -1,8 +1,8 @@
 package cdp4s.domain.extensions
 
 import cats.Monad
-import cats.syntax.flatMap._
-import cats.syntax.functor._
+import cats.syntax.flatMap.*
+import cats.syntax.functor.*
 import cdp4s.domain.Operation
 import cdp4s.domain.model.Input
 import cdp4s.domain.model.Input.params.Type

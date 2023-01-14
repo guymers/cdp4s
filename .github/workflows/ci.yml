@@ -1,75 +1,46 @@
 name: CI
-on: [ push, pull_request ]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ '**' ]
 
 jobs:
-  compile:
-    runs-on: ubuntu-18.04
+  test:
+    runs-on: ubuntu-22.04
+    name: Test
     strategy:
       matrix:
-        java: [ 8 ]
-        scala: [ 2.12.12, 2.13.3 ]
+        scala: [ 2.12.x, 2.13.x, 3.x ]
 
-    name: Compile java=${{ matrix.java }} scala=${{ matrix.scala }}
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Setup Java
-        uses: actions/setup-java@v1
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
-          java-version: ${{ matrix.java }}
+          fetch-depth: 0
 
-      - name: Cache
-        uses: coursier/cache-action@v4
+      - name: Install JDK 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: zulu
+          java-version: '11'
+          java-package: jdk
+
+      - name: Cache SBT
+        uses: coursier/cache-action@v6
+        with:
+          extraKey: v1
+
+      - name: Lint
+        run: sbt "++${{ matrix.scala }} scalafmtCheckAll"
 
       - name: Compile
-        run: |
-          sbt ++${{ matrix.scala }} compile test:compile it:compile
-
-      - name: Compress target directories
-        shell: bash
-        run: |
-          find . -type d -name target | grep -v 'project/project/target' | xargs tar cf targets.tar
-
-      - name: Upload target directories
-        uses: actions/upload-artifact@v2
-        with:
-          name: target-${{ matrix.java }}-${{ matrix.scala }}
-          path: targets.tar
-
-  test:
-    runs-on: ubuntu-18.04
-    needs: compile
-    strategy:
-      matrix:
-        java: [ 8 ]
-        scala: [ 2.12.12, 2.13.3 ]
-
-    name: Test java=${{ matrix.java }} scala=${{ matrix.scala }}
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Setup Java
-        uses: actions/setup-java@v1
-        with:
-          java-version: ${{ matrix.java }}
-
-      - name: Cache
-        uses: coursier/cache-action@v4
-
-      - name: Download target directories
-        uses: actions/download-artifact@v2
-        with:
-          name: target-${{ matrix.java }}-${{ matrix.scala }}
-
-      - name: Inflate target directories
-        run: |
-          tar xf targets.tar
-          rm targets.tar
+        run: sbt "++${{ matrix.scala }} IntegrationTest/compile"
 
       - name: Test
-        run: sbt ++${{ matrix.scala }} test
+        run: sbt "++${{ matrix.scala }} test"
 
       - name: Integration Test
         env:
           CHROME_PATH: /usr/bin/google-chrome
-        run: sbt ++${{ matrix.scala }} it:test
+        run: sbt "++${{ matrix.scala }} IntegrationTest/test"
