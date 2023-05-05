@@ -9,9 +9,9 @@ case class Base64String(value: Array[Byte])
 object Base64String {
 
   implicit val decoder: Decoder[Base64String] = Decoder[String].emap { str =>
-    try Right {
+    try {
       val bytes = java.util.Base64.getDecoder.decode(str)
-      Base64String(bytes)
+      Right(Base64String(bytes))
     } catch {
       case e: IllegalArgumentException => Left(e.getMessage)
     }

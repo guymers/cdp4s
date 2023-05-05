@@ -25,26 +25,28 @@ object TypeTemplate {
 
     typeDesc.`type` match {
       case any(_) | binary(_) | string(_) | integer(_) | number(_) | boolean(_) | array(_, _) => Some {
-        NewType { NewTypeTemplate.create(typeDesc) }
-      }
+          NewType { NewTypeTemplate.create(typeDesc) }
+        }
 
       case obj(properties, _) => Some {
-        NonEmptyVector.fromVector(properties) match {
-          case None => NewType { NewTypeTemplate.create(typeDesc) }
-          case Some(props) => Obj { ObjectTemplate.create(
-            name = typeDesc.id,
-            description = typeDesc.description,
-            deprecated = typeDesc.deprecated,
-            experimental = typeDesc.experimental,
-            objExtends = None,
-            properties = props.toVector,
-          ) }
+          NonEmptyVector.fromVector(properties) match {
+            case None => NewType { NewTypeTemplate.create(typeDesc) }
+            case Some(props) => Obj {
+                ObjectTemplate.create(
+                  name = typeDesc.id,
+                  description = typeDesc.description,
+                  deprecated = typeDesc.deprecated,
+                  experimental = typeDesc.experimental,
+                  objExtends = None,
+                  properties = props.toVector,
+                )
+              }
+          }
         }
-      }
 
       case enum(values, _) => Some {
-        Enum { EnumTemplate(typeDesc.id, typeDesc.description, values) }
-      }
+          Enum { EnumTemplate(typeDesc.id, typeDesc.description, values) }
+        }
 
       case reference(_, _, _) =>
         None

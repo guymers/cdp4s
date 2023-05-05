@@ -9,7 +9,7 @@ final case class ChromeResponse[T](
 )
 
 object ChromeResponse {
-  implicit def decoder[T : Decoder]: Decoder[ChromeResponse[T]] = {
+  implicit def decoder[T: Decoder]: Decoder[ChromeResponse[T]] = {
     Decoder.forProduct3("id", "error", "result")(ChromeResponse.apply[T])
   }
 }

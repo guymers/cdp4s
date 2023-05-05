@@ -1,11 +1,5 @@
 package cpd4s.example
 
-import java.net.URI
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.time.Instant
-import scala.concurrent.duration.*
 import cats.NonEmptyParallel
 import cats.Parallel
 import cats.data.Kleisli
@@ -25,6 +19,13 @@ import cdp4s.domain.Operation
 import cdp4s.domain.handles.PageHandle
 import cpd4s.test.ChromeWebSocketInterpreterHelper
 import fs2.Stream
+
+import java.net.URI
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.time.Instant
+import scala.concurrent.duration.*
 
 object Main extends IOApp {
 
@@ -96,21 +97,22 @@ object Main extends IOApp {
   }
 
   private def takeScreenshot[F[_]](
-    uri: URI
+    uri: URI,
   )(implicit F: Async[F], P: NonEmptyParallel[F], op: Operation[F]): F[Path] = for {
-    _: Unit <- op.emulation.setDeviceMetricsOverride(1280, 1024, 0.0D, mobile = false)
+    _: Unit <- op.emulation.setDeviceMetricsOverride(1280, 1024, 0.0d, mobile = false)
     _ <- PageHandle.navigate(uri).timeout(10.seconds)
     screenshot <- screenshotToTempFile
   } yield screenshot
 
   private def search[F[_]](
-    search: String
+    search: String,
   )(implicit F: Async[F], P: NonEmptyParallel[F], op: Operation[F]): F[Path] = for {
-    _: Unit <- op.emulation.setDeviceMetricsOverride(1280, 1024, 0.0D, mobile = false)
+    _: Unit <- op.emulation.setDeviceMetricsOverride(1280, 1024, 0.0d, mobile = false)
     pageHandle <- PageHandle.navigate(new URI("https://duckduckgo.com")).timeout(10.seconds)
 
     optSearchTextElement <- pageHandle.find("input[type='text'][name='q']")
-    searchTextElement <- optSearchTextElement.toRight("Failed to find search input").leftMap(new RuntimeException(_)).liftTo[F]
+    searchTextElement <-
+      optSearchTextElement.toRight("Failed to find search input").leftMap(new RuntimeException(_)).liftTo[F]
     _ <- searchTextElement.`type`(search)
 
     optSearchButton <- pageHandle.find("input[type='submit'][value='S']")
@@ -136,7 +138,7 @@ object Main extends IOApp {
   } yield file
 
   private def screenshotOnError[F[_], T](dir: Path)(
-    program: F[T]
+    program: F[T],
   )(implicit F: Sync[F], op: Operation[F]): F[T] = {
 
     def screenshotToDirectory(t: Throwable): F[T] = {

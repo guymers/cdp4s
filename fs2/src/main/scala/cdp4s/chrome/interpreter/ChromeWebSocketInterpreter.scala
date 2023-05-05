@@ -1,12 +1,12 @@
 package cdp4s.chrome.interpreter
 
 import cats.NonEmptyParallel
-import cats.effect.kernel.Concurrent
-import cats.effect.kernel.Resource
 import cats.effect.kernel.Async
+import cats.effect.kernel.Concurrent
 import cats.effect.kernel.Deferred
-import cats.effect.syntax.spawn.*
+import cats.effect.kernel.Resource
 import cats.effect.syntax.monadCancel.*
+import cats.effect.syntax.spawn.*
 import cats.syntax.applicativeError.*
 import cats.syntax.flatMap.*
 import cats.syntax.functor.*
@@ -32,8 +32,8 @@ trait ChromeWebSocketInterpreter[F[_]] {
 object ChromeWebSocketInterpreter {
 
   /**
-    * Create an interpreter that can run programs.
-    */
+   * Create an interpreter that can run programs.
+   */
   def create[F[_]](
     client: ChromeWebSocketClient[F],
   )(implicit F: Async[F], P: NonEmptyParallel[F]): Resource[F, ChromeWebSocketInterpreter[F]] = for {
@@ -48,10 +48,10 @@ object ChromeWebSocketInterpreter {
         case Message.Outbound(_) => F.unit
         case Message.Inbound.Response(_, _) => F.unit
         case Message.Inbound.Event(e) => for {
-          listeners <- eventListeners.listeners(e.sessionId)
-          _: List[Unit] <- listeners.toList.flatMap(_.lift(e.event).toList).sequence // in series for now
-          _ <- eventTopic.publish1(Some(e))
-        } yield ()
+            listeners <- eventListeners.listeners(e.sessionId)
+            _: List[Unit] <- listeners.toList.flatMap(_.lift(e.event).toList).sequence // in series for now
+            _ <- eventTopic.publish1(Some(e))
+          } yield ()
         case Message.Inbound.Unknown(_) => F.unit
       }
       stream.compile.drain.background
@@ -71,7 +71,8 @@ object ChromeWebSocketInterpreter {
 
       override def runWithEvents[T](program: Operation[F] => F[T]): Stream[F, Either[Event, T]] = {
         Stream.resource(cdp4s.domain.extensions.tab.createTab[F](F, globalInterpreter)).flatMap { sessionId =>
-          val eventStream = eventTopic.subscribe(1024).unNone.filter(_.sessionId.contains(sessionId)).map(_.event).map(Left(_))
+          val eventStream = eventTopic.subscribe(1024).unNone
+            .filter(_.sessionId.contains(sessionId)).map(_.event).map(Left(_))
           val programStream = Stream.eval(runProgram(sessionId, program)).map(Right(_))
           eventStream.mergeHaltBoth(programStream)
         }
@@ -84,7 +85,6 @@ object ChromeWebSocketInterpreter {
     }
   }
 }
-
 
 final class ChromeWebSocketInterpreterImpl[F[_]] private[interpreter] (
   client: ChromeWebSocketClient[F],
@@ -110,7 +110,7 @@ final class ChromeWebSocketInterpreterImpl[F[_]] private[interpreter] (
     }
   }
 
-  override def runCommand[T : Decoder](method: String, params: JsonObject): F[T] = {
+  override def runCommand[T: Decoder](method: String, params: JsonObject): F[T] = {
     client.runCommand(method, params, sessionId)
   }
 }

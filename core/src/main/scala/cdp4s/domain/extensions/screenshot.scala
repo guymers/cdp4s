@@ -1,15 +1,14 @@
 package cdp4s.domain.extensions
 
+import cats.effect.kernel.Sync
+import cats.syntax.flatMap.*
+import cats.syntax.functor.*
+import cats.syntax.option.*
 import cdp4s.domain.Operation
 
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
-
-import cats.effect.kernel.Sync
-import cats.syntax.flatMap.*
-import cats.syntax.functor.*
-import cats.syntax.option.*
 
 object screenshot {
 

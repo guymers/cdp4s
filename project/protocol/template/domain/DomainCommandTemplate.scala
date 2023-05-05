@@ -21,7 +21,7 @@ object DomainCommandTemplate {
       experimental = command.experimental,
       parameterTemplates,
       "F",
-      DomainCommandReturnType.create(command)
+      DomainCommandReturnType.create(command),
     )
   }
 }

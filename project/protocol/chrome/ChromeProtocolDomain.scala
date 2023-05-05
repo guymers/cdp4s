@@ -14,6 +14,13 @@ final case class ChromeProtocolDomain(
 
 object ChromeProtocolDomain {
   implicit val decoder: Decoder[ChromeProtocolDomain] = {
-    Decoder.forProduct6("domain", "dependencies", "commands", "types", "events", "experimental")(ChromeProtocolDomain.apply)
+    Decoder.forProduct6(
+      "domain",
+      "dependencies",
+      "commands",
+      "types",
+      "events",
+      "experimental",
+    )(ChromeProtocolDomain.apply)
   }
 }

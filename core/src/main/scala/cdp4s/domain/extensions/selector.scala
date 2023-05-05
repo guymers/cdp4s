@@ -36,12 +36,12 @@ object selector {
 
   def find[F[_]](
     executionContextId: Runtime.ExecutionContextId,
-    selector: String
+    selector: String,
   )(implicit F: MonadError[F, Throwable], op: Operation[F]): F[Option[ElementHandle]] = for {
     remoteObject <- execute.callFunction[F](
       executionContextId,
       querySelectorFunctionDeclaration,
-      Vector(Runtime.CallArgument(Some(selector.asJson)))
+      Vector(Runtime.CallArgument(Some(selector.asJson))),
     )
     elementHandle <- {
       if (remoteObject.subtype.contains(Runtime.RemoteObject.Subtype.node)) {
@@ -54,12 +54,12 @@ object selector {
 
   def findAll[F[_]](
     executionContextId: Runtime.ExecutionContextId,
-    selector: String
+    selector: String,
   )(implicit F: MonadError[F, Throwable], op: Operation[F]): F[Seq[ElementHandle]] = for {
     remoteObject <- execute.callFunction[F](
       executionContextId,
       querySelectorAllFunctionDeclaration,
-      Vector(Runtime.CallArgument(Some(selector.asJson)))
+      Vector(Runtime.CallArgument(Some(selector.asJson))),
     )
 
     properties <- remoteObject.objectId match {
@@ -70,7 +70,7 @@ object selector {
     elementHandles <- {
       val (releaseObjects, results) = properties.flatMap { property =>
         property.value.map { value =>
-         if (property.enumerable && value.subtype.contains(Runtime.RemoteObject.Subtype.node)) {
+          if (property.enumerable && value.subtype.contains(Runtime.RemoteObject.Subtype.node)) {
             ElementHandle(executionContextId, value).asRight
           } else {
             releaseObject(remoteObject).asLeft
@@ -84,7 +84,7 @@ object selector {
 
   // from lib/helper.js releaseObject
   private def releaseObject[F[_]](
-    remoteObject: Runtime.RemoteObject
+    remoteObject: Runtime.RemoteObject,
   )(implicit F: MonadError[F, Throwable], op: Operation[F]): F[Unit] = {
     remoteObject.objectId match {
       case None => F.unit
@@ -101,7 +101,7 @@ object selector {
     result <- execute.callFunction[F](
       elementHandle.executionContextId,
       isVisibleDeclaration,
-      Vector(remoteObjectToCallArgument(elementHandle.remoteObject))
+      Vector(remoteObjectToCallArgument(elementHandle.remoteObject)),
     )
     visible = result.value.flatMap(_.asBoolean).getOrElse(false)
     _ <- releaseObject(result) // TODO Resource?

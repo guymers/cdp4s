@@ -1,16 +1,15 @@
 package cdp4s.domain.extensions
 
-import java.net.URI
-
-import scala.annotation.tailrec
-import scala.concurrent.duration.*
-
 import cats.effect.IO
 import cdp4s.domain.Operation
 import cdp4s.domain.handles.PageHandle
 import cdp4s.domain.model.DOM
 import cpd4s.test.InterpreterProvided
 import org.scalatest.freespec.AsyncFreeSpec
+
+import java.net.URI
+import scala.annotation.tailrec
+import scala.concurrent.duration.*
 
 class SecurityExtensionsIntegrationTest extends AsyncFreeSpec with InterpreterProvided {
   import InterpreterProvided.*

@@ -29,6 +29,9 @@ jobs:
       - name: Cache
         uses: coursier/cache-action@v6
 
+      - name: Lint
+        run: sbt --client "++${{ matrix.scala }} scalafmtCheckAll"
+
       - name: Compile
         run: sbt --client "++${{ matrix.scala }} Test/compile"
 

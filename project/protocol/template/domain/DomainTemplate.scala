@@ -13,7 +13,6 @@ object DomainTemplate {
 
     DomainTemplate(domain.domain, commandTemplates)
   }
-
 }
 
 final case class DomainTemplate(

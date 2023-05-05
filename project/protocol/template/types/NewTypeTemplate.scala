@@ -31,18 +31,18 @@ final case class NewTypeTemplate(
     val typeStr = ScalaChromeType.toTypeString(tpe)
 
     descriptionToLines(description, Vector.empty) ++
-    annotationsToLines(deprecated, experimental) ++
-    Lines(
-      Line(s"final case class $safeName(value: $typeStr) extends AnyVal"),
-      Line(""),
-      Line(s"object $safeName {"),
-      Vector(
-        "import _root_.io.circe.syntax.EncoderOps",
-        "",
-        s"implicit val decoder: _root_.io.circe.Decoder[$safeName] = _root_.io.circe.Decoder[$typeStr].map($safeName.apply)",
-        s"implicit val encoder: _root_.io.circe.Encoder[$safeName] = _root_.io.circe.Encoder.instance(_.value.asJson)",
-      ).indent(1),
-      Line("}"),
-    )
+      annotationsToLines(deprecated, experimental) ++
+      Lines(
+        Line(s"final case class $safeName(value: $typeStr) extends AnyVal"),
+        Line(""),
+        Line(s"object $safeName {"),
+        Vector(
+          "import _root_.io.circe.syntax.EncoderOps",
+          "",
+          s"implicit val decoder: _root_.io.circe.Decoder[$safeName] = _root_.io.circe.Decoder[$typeStr].map($safeName.apply)",
+          s"implicit val encoder: _root_.io.circe.Encoder[$safeName] = _root_.io.circe.Encoder.instance(_.value.asJson)",
+        ).indent(1),
+        Line("}"),
+      )
   }
 }

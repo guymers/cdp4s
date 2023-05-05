@@ -16,7 +16,8 @@ object ScalaChromeType {
   final case class Fixed(`type`: String, wrappers: List[ScalaChromeTypeWrapper]) extends ScalaChromeType
   final case class Obj(name: String, wrappers: List[ScalaChromeTypeWrapper]) extends ScalaChromeType
   final case class Enum(name: String, wrappers: List[ScalaChromeTypeWrapper]) extends ScalaChromeType
-  final case class Reference(domain: Option[String], ref: String, wrappers: List[ScalaChromeTypeWrapper]) extends ScalaChromeType
+  final case class Reference(domain: Option[String], ref: String, wrappers: List[ScalaChromeTypeWrapper])
+    extends ScalaChromeType
 
   def chromeTypeToScala(name: String, `type`: ChromeProtocolType): ScalaChromeType = {
     import ChromeProtocolType.*
@@ -35,10 +36,10 @@ object ScalaChromeType {
         case boolean(_) => Fixed("scala.Boolean", optWrappers(wrappers))
         case array(items, _) => go(items, optWrappers(ScalaChromeTypeWrapper.Array :: wrappers))
         case obj(properties, _) => if (properties.nonEmpty) {
-          Obj(name, optWrappers(wrappers))
-        } else {
-          Fixed("_root_.io.circe.JsonObject", optWrappers(wrappers))
-        }
+            Obj(name, optWrappers(wrappers))
+          } else {
+            Fixed("_root_.io.circe.JsonObject", optWrappers(wrappers))
+          }
         case enum(_, _) => Enum(name, optWrappers(wrappers))
         case reference(refDomain, ref, _) => Reference(refDomain, ref, optWrappers(wrappers))
       }
@@ -52,7 +53,8 @@ object ScalaChromeType {
       case Fixed(t, _) => toTypeStr(t)
       case Obj(name, _) => toTypeStr(s"${ctx.objPackage}.$name")
       case Enum(name, _) => toTypeStr(s"${ctx.enumPackage}.$name")
-      case Reference(domain, ref, _) => toTypeStr(s"${ctx.referencePackage}.${escapeScalaVariable(domain.getOrElse(ctx.domain))}.$ref")
+      case Reference(domain, ref, _) =>
+        toTypeStr(s"${ctx.referencePackage}.${escapeScalaVariable(domain.getOrElse(ctx.domain))}.$ref")
     }
   }
 }

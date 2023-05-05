@@ -42,12 +42,12 @@ final case class InterpreterTemplate(
       Vector("val params = _root_.io.circe.JsonObject.empty")
     } else {
       Vector("val params = _root_.io.circe.JsonObject(") ++
-      parameters.map { parameter =>
-        val paramName = escapeScalaVariable(parameter.name)
+        parameters.map { parameter =>
+          val paramName = escapeScalaVariable(parameter.name)
 
-        s""""${parameter.name}" -> $paramName.asJson,"""
-      }.indent(1) ++
-      Vector(")"),
+          s""""${parameter.name}" -> $paramName.asJson,"""
+        }.indent(1) ++
+        Vector(")"),
     }
 
     // define a custom decoder if there is only one returned value
@@ -72,8 +72,7 @@ final case class InterpreterTemplate(
         customDecoderLines,
         Vector(s"""runCommand[$returnTypeStr]("$domain.${command.name}", params)""" + customDecoder),
       ).flatten.indent(1),
-      Vector("}")
+      Vector("}"),
     )
   }
 }
-
