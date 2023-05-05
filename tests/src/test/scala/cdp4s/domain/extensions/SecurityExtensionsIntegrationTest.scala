@@ -12,7 +12,7 @@ import cdp4s.domain.model.DOM
 import cpd4s.test.InterpreterProvided
 import org.scalatest.freespec.AsyncFreeSpec
 
-trait SecurityExtensionsIntegrationTest { self: AsyncFreeSpec & InterpreterProvided =>
+class SecurityExtensionsIntegrationTest extends AsyncFreeSpec with InterpreterProvided {
   import InterpreterProvided.*
   import cats.effect.unsafe.implicits.global
 
