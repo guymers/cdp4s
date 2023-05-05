@@ -1,14 +1,22 @@
 import java.io.File
 import java.nio.file.Files
 
-val catsVersion = "2.2.0"
-val catsEffectVersion = "2.2.0"
-val circeVersion = "0.13.0"
-val fs2Version = "2.4.4"
-val sttpVersion = "3.0.0-RC4"
-val scalaTestVersion = "3.2.2"
+val catsVersion = "2.9.0"
+val catsEffectVersion = "3.4.10"
+val circeVersion = "0.14.5"
+val fs2Version = "3.6.1"
+val sttpVersion = "3.8.15"
+val scalaTestVersion = "3.2.15"
 
-lazy val IntegrationTest = config("it") extend Test
+inThisBuild(Seq(
+  organization := "io.github.guymers",
+  homepage := Some(url("https://github.com/guymers/cdp4s")),
+  licenses := List(License.Apache2),
+  developers := List(
+    Developer("guymers", "Sam Guymer", "@guymers", url("https://github.com/guymers"))
+  ),
+  scmInfo := Some(ScmInfo(url("https://github.com/guymers/cdp4s"), "git@github.com:guymers/cdp4s.git")),
+))
 
 val warnUnused = Seq(
   "explicits",
@@ -28,14 +36,13 @@ def filterScalacConsoleOpts(options: Seq[String]) = {
   }
 }
 
-val Scala212 = "2.12.12"
-val Scala213 = "2.13.3"
+val Scala212 = "2.12.17"
+val Scala213 = "2.13.10"
 
 lazy val commonSettings = Seq(
   name := "cdp4s",
   scalaVersion := Scala212,
   crossScalaVersions := Seq(Scala212, Scala213),
-  licenses ++= Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
 
   // https://tpolecat.github.io/2017/04/25/scalac-flags.html
   scalacOptions ++= Seq(
@@ -74,32 +81,57 @@ lazy val commonSettings = Seq(
       "-Wvalue-discard",
     ) ++ warnUnused.map(o => s"-Wunused:$o")
   }),
-  scalacOptions in (Compile, console) ~= filterScalacConsoleOpts,
-  scalacOptions in (Test, console) ~= filterScalacConsoleOpts,
 
-  wartremoverErrors := Seq.empty,
-  wartremoverErrors in (Compile, compile) ++= Warts.allBut(Wart.Any, Wart.ArrayEquals, Wart.Equals, Wart.Nothing),
+  Compile / console / scalacOptions ~= filterScalacConsoleOpts,
+  Test / console / scalacOptions ~= filterScalacConsoleOpts,
 
-  dependencyOverrides += scalaOrganization.value % "scala-library" % scalaVersion.value,
-  dependencyOverrides += scalaOrganization.value % "scala-reflect" % scalaVersion.value,
+  Compile / compile / wartremoverErrors := Warts.all,
+  Compile / compile / wartremoverErrors --= Seq(
+    Wart.Any,
+    Wart.ArrayEquals,
+    Wart.Equals,
+    Wart.FinalCaseClass,
+    Wart.ImplicitParameter,
+    Wart.Nothing,
+  ),
+  Test / compile / wartremoverErrors := Seq(
+    Wart.NonUnitStatements,
+    Wart.Null,
+    Wart.Return,
+  ),
 
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.0" cross CrossVersion.full),
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full),
 
-  addCompilerPlugin("com.github.ghik" % "silencer-plugin" % "1.7.1" cross CrossVersion.full),
-  libraryDependencies += "com.github.ghik" % "silencer-lib" % "1.7.1" % Provided cross CrossVersion.full,
+  addCompilerPlugin("com.github.ghik" % "silencer-plugin" % "1.7.12" cross CrossVersion.full),
+  libraryDependencies += "com.github.ghik" % "silencer-lib" % "1.7.12" % Provided cross CrossVersion.full,
   scalacOptions += "-P:silencer:pathFilters=src_managed",
 
   fork := true,
+  Test / fork := false,
+  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars,
 
-  testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDF")
+  Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oDF")
 )
-
 
 lazy val cdp4s = project.in(file("."))
   .settings(commonSettings)
-  .settings(skip in publish := true)
-  .aggregate(core, sttp, tests, example)
+  .settings(publish / skip := true)
+  .settings(
+    addCommandAlias("testUnit", ";modules/test"),
+    addCommandAlias("testIntegration", ";integrationTests/test"),
+  )
+  .aggregate(modules, integrationTests, example)
+
+lazy val modules = project.in(file("project/.root"))
+  .settings(commonSettings)
+  .settings(publish / skip := true)
+  .aggregate(core, fs2)
+
+lazy val integrationTests = project.in(file("project/.root-integration"))
+  .settings(commonSettings)
+  .settings(publish / skip := true)
+  .aggregate(tests)
 
 lazy val protocolJsonFile = (file(".") / "project" / "protocol.json").getAbsoluteFile
 
@@ -117,8 +149,8 @@ lazy val core = project.in(file("core"))
       "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
     ),
 
-    sourceGenerators in Compile += Def.task[Seq[File]] {
-      val dir = (sourceManaged in Compile).value.toPath
+    Compile / sourceGenerators += Def.task[Seq[File]] {
+      val dir = (Compile / sourceManaged).value.toPath
       val generated = ProtocolCodeGen.generate(protocolJsonFile)
 
       val filesToWrite = generated.map { case (path, lines) => (dir.resolve(path), lines) }
@@ -127,8 +159,8 @@ lazy val core = project.in(file("core"))
     }.taskValue
   ))
 
-lazy val sttp = project.in(file("sttp"))
-  .settings(moduleName := "cdp4s-sttp")
+lazy val fs2 = project.in(file("fs2"))
+  .settings(moduleName := "cdp4s-fs2")
   .settings(commonSettings)
   .settings(Seq(
     libraryDependencies ++= Seq(
@@ -139,7 +171,6 @@ lazy val sttp = project.in(file("sttp"))
       "io.circe" %% "circe-parser" % circeVersion,
 
       "co.fs2" %% "fs2-io" % fs2Version,
-      "com.softwaremill.sttp.client3" %% "fs2" % sttpVersion,
     ),
   ))
   .dependsOn(core)
@@ -147,20 +178,18 @@ lazy val sttp = project.in(file("sttp"))
 lazy val tests = project.in(file("tests"))
   .settings(moduleName := "cdp4s-tests")
   .settings(commonSettings)
-  .settings(skip in publish := true)
+  .settings(publish / skip := true)
   .settings(Seq(
+    Test / fork := true,
+    Test / javaOptions += "-Xmx1000m",
     libraryDependencies ++= Seq(
-      "com.softwaremill.sttp.client3" %% "async-http-client-backend-fs2" % sttpVersion,
-
       "org.scalatest" %% "scalatest" % scalaTestVersion,
     ),
   ))
-  .configs(IntegrationTest)
-  .settings(Defaults.itSettings)
-  .dependsOn(sttp)
+  .dependsOn(fs2)
 
 lazy val example = project.in(file("example"))
   .settings(moduleName := "cdp4s-example")
   .settings(commonSettings)
-  .settings(skip in publish := true)
+  .settings(publish / skip := true)
   .dependsOn(tests)

@@ -48,6 +48,16 @@ object ScalaChromeTypeContext {
     )
   }
 
+  // TODO do this is a nicer way
+  def resultsCtx(baseCtx: ScalaChromeTypeContext): ScalaChromeTypeContext = {
+    val parts = baseCtx.domain.split('.')
+    val domain = s"${parts.head}.results${parts.drop(1).mkString(".")}"
+    val safeDomainName = escapeScalaVariable(domain)
+    baseCtx.copy(
+      enumPackage = s"$modelPackage.$safeDomainName",
+    )
+  }
+
   def propertyCtx(baseCtx: ScalaChromeTypeContext, objName: String): ScalaChromeTypeContext = {
     val safeObjName = escapeScalaVariable(objName)
     baseCtx.copy(

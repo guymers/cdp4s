@@ -5,21 +5,17 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Instant
-
 import scala.concurrent.duration._
-
 import cats.NonEmptyParallel
 import cats.Parallel
 import cats.data.Kleisli
-import cats.effect.Concurrent
-import cats.effect.ContextShift
 import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.Resource
 import cats.effect.Sync
-import cats.effect.Timer
-import cats.effect.syntax.concurrent._
+import cats.effect.kernel.Async
+import cats.effect.syntax.temporal._
 import cats.syntax.applicativeError._
 import cats.syntax.either._
 import cats.syntax.flatMap._
@@ -27,21 +23,21 @@ import cats.syntax.functor._
 import cats.syntax.show._
 import cdp4s.domain.Operation
 import cdp4s.domain.handles.PageHandle
-import cpd4s.test.BlockerHelper
 import cpd4s.test.ChromeWebSocketInterpreterHelper
 import fs2.Stream
 
 object Main extends IOApp {
-  import BlockerHelper.blocker
 
   private val Headless = true
   private val NumProcessors = Runtime.getRuntime.availableProcessors()
 
-  private implicit val parallelIO: Parallel.Aux[IO, IO.Par] = IO.ioParallel
+  private implicit val parallelIO: Parallel.Aux[IO, IO.Par] = IO.parallelForIO
+
+  private implicit lazy val cdp4sRuntime: cdp4s.Runtime[IO] = cdp4s.Runtime.catsEffectIORuntime(runtime)
 
   override def run(args: List[String]): IO[ExitCode] = {
-    val errorDir = Resource.liftF {
-      blocker.delay[IO, Path] {
+    val errorDir = Resource.eval {
+      IO.blocking {
         val errorDir = Files.createTempDirectory("cdp4s-example-errors")
         println(show"Error directory is ${errorDir.toFile.getAbsolutePath}")
         errorDir
@@ -81,7 +77,7 @@ object Main extends IOApp {
         programs
           .map { k =>
             Kleisli { op: Operation[IO] =>
-              screenshotOnError(errorDir)(k.run(op))(implicitly, implicitly, op)
+              screenshotOnError(errorDir)(k.run(op))(implicitly, op)
             }
           }
           .map { k =>
@@ -97,7 +93,7 @@ object Main extends IOApp {
 
   private def takeScreenshot[F[_]](
     uri: URI
-  )(implicit F: Concurrent[F], P: NonEmptyParallel[F], CS: ContextShift[F], T: Timer[F], op: Operation[F]): F[Path] = for {
+  )(implicit F: Async[F], P: NonEmptyParallel[F], op: Operation[F]): F[Path] = for {
     _: Unit <- op.emulation.setDeviceMetricsOverride(1280, 1024, 0.0D, mobile = false)
     _ <- PageHandle.navigate(uri).timeout(10.seconds)
     screenshot <- screenshotToTempFile
@@ -105,7 +101,7 @@ object Main extends IOApp {
 
   private def search[F[_]](
     search: String
-  )(implicit F: Concurrent[F], P: NonEmptyParallel[F], CS: ContextShift[F], T: Timer[F], op: Operation[F]): F[Path] = for {
+  )(implicit F: Async[F], P: NonEmptyParallel[F], op: Operation[F]): F[Path] = for {
     _: Unit <- op.emulation.setDeviceMetricsOverride(1280, 1024, 0.0D, mobile = false)
     pageHandle <- PageHandle.navigate(new URI("https://duckduckgo.com")).timeout(10.seconds)
 
@@ -119,7 +115,7 @@ object Main extends IOApp {
       @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
       def untilVisible: F[Unit] = searchButton.isVisible.flatMap {
         case true => F.unit
-        case false => T.sleep(100.milliseconds) >> untilVisible
+        case false => F.sleep(100.milliseconds) >> untilVisible
       }
       untilVisible.timeout(5.seconds)
     }
@@ -128,23 +124,23 @@ object Main extends IOApp {
     screenshot <- screenshotToTempFile
   } yield screenshot
 
-  private def screenshotToTempFile[F[_]](implicit F: Sync[F], CS: ContextShift[F], op: Operation[F]): F[Path] = for {
-    file <- blocker.delay {
+  private def screenshotToTempFile[F[_]](implicit F: Sync[F], op: Operation[F]): F[Path] = for {
+    file <- F.blocking {
       Files.createTempFile("cdp4s-example", ".png")
     }
-    file <- cdp4s.domain.extensions.screenshot.take(blocker, file)
+    file <- cdp4s.domain.extensions.screenshot.take(file)
   } yield file
 
   private def screenshotOnError[F[_], T](dir: Path)(
     program: F[T]
-  )(implicit F: Sync[F], CS: ContextShift[F], op: Operation[F]): F[T] = {
+  )(implicit F: Sync[F], op: Operation[F]): F[T] = {
 
     def screenshotToDirectory(t: Throwable): F[T] = {
       for {
-        file <- blocker.delay {
+        file <- F.blocking {
           Files.createTempFile(dir, "error", ".png")
         }
-        _ <- cdp4s.domain.extensions.screenshot.take(blocker, file)
+        _ <- cdp4s.domain.extensions.screenshot.take(file)
         result <- F.raiseError[T](t)
       } yield result
     }

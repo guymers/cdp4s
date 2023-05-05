@@ -6,14 +6,17 @@ import io.circe.DecodingFailure
 import io.circe.Json
 import io.circe.JsonObject
 import io.circe.syntax._
-import sttp.model.StatusCode
 
 sealed abstract class WebSocketException(msg: String) extends CDP4sException(msg)
 
 object WebSocketException {
 
-  final class Connection(status: StatusCode, body: String) extends WebSocketException(
-    show"Failed to connect to websocket ${status.code}: ${body.take(250)}"
+  final class Connection(code: Int, body: String) extends WebSocketException(
+    show"Failed to connect to websocket $code: ${body.take(250)}"
+  )
+
+  final class Timeout(reason: String) extends WebSocketException(
+    show"Timed out when communicating with websocket: ${reason.take(250)}",
   )
 
   final class FrameDecoding(data: String, failure: io.circe.Error) extends WebSocketException(
@@ -28,6 +31,7 @@ object WebSocketException {
     show"No callback found for id $id: ${json.asJson.noSpaces.take(250)}"
   )
 
+  // TODO this error (all errors?) occurring hangs the program
   final class EventDecoding(json: JsonObject, failure: DecodingFailure) extends WebSocketException(
     show"Invalid event $failure: ${json.asJson.noSpaces.take(250)}"
   )
