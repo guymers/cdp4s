@@ -3,9 +3,10 @@ package cdp4s.chrome.interpreter
 import cats.NonEmptyParallel
 import cats.effect.Concurrent
 import cats.effect.Resource
-import cats.effect.concurrent.Deferred
-import cats.effect.syntax.bracket._
-import cats.effect.syntax.concurrent._
+import cats.effect.kernel.Async
+import cats.effect.kernel.Deferred
+import cats.effect.syntax.spawn._
+import cats.effect.syntax.monadCancel._
 import cats.syntax.applicativeError._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
@@ -35,12 +36,12 @@ object ChromeWebSocketInterpreter {
     */
   def create[F[_]](
     client: ChromeWebSocketClient[F],
-  )(implicit F: Concurrent[F], P: NonEmptyParallel[F]): Resource[F, ChromeWebSocketInterpreter[F]] = for {
-    eventListeners <- Resource.liftF {
+  )(implicit F: Async[F], P: NonEmptyParallel[F]): Resource[F, ChromeWebSocketInterpreter[F]] = for {
+    eventListeners <- Resource.eval {
       EventListenersPerSession.create[F]
     }
-    eventTopic <- Resource.liftF {
-      Topic[F, Option[ChromeEvent]](None)
+    eventTopic <- Resource.eval {
+      Topic[F, Option[ChromeEvent]]
     }
     _ <- {
       val stream = client.messages.evalTap {
@@ -53,23 +54,22 @@ object ChromeWebSocketInterpreter {
         } yield ()
         case Message.Inbound.Unknown(_) => F.unit
       }
-      Resource.make(stream.compile.drain.start) { fiber =>
-        client.shutdown >> fiber.join
-      }
+      stream.compile.drain.background
+        .onCancel(Resource.eval(client.shutdown))
     }
     globalInterpreter = new ChromeWebSocketInterpreterImpl[F](client, None, eventListeners)
   } yield {
 
     new ChromeWebSocketInterpreter[F] {
 
-      def run[T](program: Operation[F] => F[T]): F[T] = (for {
+      override def run[T](program: Operation[F] => F[T]): F[T] = (for {
         sessionId <- cdp4s.domain.extensions.tab.createTab[F](F, globalInterpreter)
         _ <- Resource.make(F.unit)((_: Unit) => eventListeners.removeListeners(Some(sessionId)))
       } yield sessionId).use { sessionId =>
         runProgram(sessionId, program)
       }
 
-      def runWithEvents[T](program: Operation[F] => F[T]): Stream[F, Either[Event, T]] = {
+      override def runWithEvents[T](program: Operation[F] => F[T]): Stream[F, Either[Event, T]] = {
         Stream.resource(cdp4s.domain.extensions.tab.createTab[F](F, globalInterpreter)).flatMap { sessionId =>
           val eventStream = eventTopic.subscribe(1024).unNone.filter(_.sessionId.contains(sessionId)).map(_.event).map(Left(_))
           val programStream = Stream.eval(runProgram(sessionId, program)).map(Right(_))
@@ -100,7 +100,7 @@ final class ChromeWebSocketInterpreterImpl[F[_]] private[interpreter] (
     override def waitForEvent[E](f: PartialFunction[Event, E]): F[F[E]] = for {
       d <- Deferred[F, E]
       complete = f.andThen { e =>
-        d.complete(e).recover {
+        d.complete(e).map(_ => ()).recover {
           case _: IllegalStateException => ()
         }
       }

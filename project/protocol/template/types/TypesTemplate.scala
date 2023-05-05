@@ -59,8 +59,10 @@ final case class TypesTemplate(
         paramEnumTemplates.flatMap(_.toLines).indent(1),
         Line("}"),
         Line(""),
-        Line("object results {"),
-        resultTemplates.flatMap(_.toLines).indent(1),
+        Line("object results {"), {
+          val _ctx = ScalaChromeTypeContext.resultsCtx(ctx)
+          resultTemplates.flatMap(_.toLines(_ctx)).indent(1)
+        },
         Line("}"),
       ).indent(1),
       Line("}"),

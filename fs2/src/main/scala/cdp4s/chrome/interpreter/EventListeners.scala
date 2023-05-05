@@ -1,16 +1,16 @@
 package cdp4s.chrome.interpreter
 
-import java.util.concurrent.atomic.AtomicLong
+import cats.effect.kernel.Ref
 
+import java.util.concurrent.atomic.AtomicLong
 import cats.effect.Sync
-import cats.effect.concurrent.Ref
 import cats.syntax.functor._
 import cdp4s.domain.model.Target.SessionID
 
 object EventListenersPerSession {
 
   def create[F[_]](implicit F: Sync[F]): F[EventListenersPerSession[F]] = {
-    Ref.of(Map.empty[Option[SessionID], EventListeners[F]]).map { ref =>
+    Ref.of[F, Map[Option[SessionID], EventListeners[F]]](Map.empty).map { ref =>
       new EventListenersPerSession(ref)
     }
   }

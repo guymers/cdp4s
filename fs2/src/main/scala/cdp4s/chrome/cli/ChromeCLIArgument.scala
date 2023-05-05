@@ -16,12 +16,13 @@ abstract class ChromeCLIArgument(val name: String, value: => Option[String]) ext
 }
 
 object ChromeCLIArgument {
-  case object AutoOpenDevtoolsForTabs extends ChromeCLIArgument("--auto-open-devtools-for-tabs", None)
+  case object AllowPreCommitInput extends ChromeCLIArgument("--allow-pre-commit-input", None)
   case object DisableBackgroundNetworking extends ChromeCLIArgument("--disable-background-networking", None)
   case object DisableBackgroundTimerThrottling extends ChromeCLIArgument("--disable-background-timer-throttling", None)
   case object DisableBackgroundingOccludedWindows extends ChromeCLIArgument("--disable-backgrounding-occluded-windows", None)
   case object DisableBreakpad extends ChromeCLIArgument("--disable-breakpad", None)
   case object DisableClientSidePhishingDetection extends ChromeCLIArgument("--disable-client-side-phishing-detection", None)
+  case object DisableComponentExtensionsWithBackgroundPages extends ChromeCLIArgument("--disable-component-extensions-with-background-pages", None)
   case object DisableDefaultApps extends ChromeCLIArgument("--disable-default-apps", None)
   case object DisableDevShmUsage extends ChromeCLIArgument("--disable-dev-shm-usage", None)
   case object DisableExtensions extends ChromeCLIArgument("--disable-extensions", None)
@@ -40,24 +41,25 @@ object ChromeCLIArgument {
     "--enable-features",
     Some(features.mkString_(","))
   )
+  case object ExportTaggedPdf extends ChromeCLIArgument("--export-tagged-pdf", None)
   final case class ForceColorProfile(profile: String) extends ChromeCLIArgument("--force-color-profile", Some(profile))
-  case object Headless extends ChromeCLIArgument("--headless", None)
   case object HideScrollbars extends ChromeCLIArgument("--hide-scrollbars", None)
+  case object Headless extends ChromeCLIArgument("--headless", None)
   case object MetricsRecordingOnly extends ChromeCLIArgument("--metrics-recording-only", None)
   case object MuteAudio extends ChromeCLIArgument("--mute-audio", None)
   case object NoFirstRun extends ChromeCLIArgument("--no-first-run", None)
   case object NoSandbox extends ChromeCLIArgument("--no-sandbox", None)
   final case class PasswordStore(store: String) extends ChromeCLIArgument("--password-store", Some(store))
   final case class RemoteDebuggingPort(port: Int) extends ChromeCLIArgument("--remote-debugging-port", Some(port.toString))
-  case object SafebrowsingDisableAutoUpdate extends ChromeCLIArgument("--safebrowsing-disable-auto-update", None)
   case object UseMockKeychain extends ChromeCLIArgument("--use-mock-keychain", None)
   final case class UserDataDir(directory: Path) extends ChromeCLIArgument("--user-data-dir", Some(directory.toFile.getAbsolutePath))
 
   // use the same default and headless arguments as set by puppeteer
-  // https://github.com/GoogleChrome/puppeteer/blob/v1.12.2/lib/Launcher.js
+  // https://github.com/puppeteer/puppeteer/blob/v19.2.2/packages/puppeteer-core/src/node/ChromeLauncher.ts#L159
   val defaultArguments: Set[ChromeCLIArgument] = Set(
+    AllowPreCommitInput,
     DisableBackgroundNetworking,
-    EnableFeatures(NonEmptyList.of("NetworkService", "NetworkServiceInProcess")),
+    EnableFeatures(NonEmptyList.of("NetworkService", "NetworkServiceInProcess2")),
     DisableBackgroundTimerThrottling,
     DisableBackgroundingOccludedWindows,
     DisableBreakpad,
@@ -65,7 +67,7 @@ object ChromeCLIArgument {
     DisableDefaultApps,
     DisableDevShmUsage,
     DisableExtensions,
-    DisableFeatures(NonEmptyList.of("site-per-process", "TranslateUI")),
+    DisableFeatures(NonEmptyList.of("Translate", "BackForwardCache", "AcceptCHFrame", "AvoidUnnecessaryBeforeUnloadCheckSync")),
     DisableHangMonitor,
     DisableIpcFloodingProtection,
     DisablePopupBlocking,
@@ -75,10 +77,10 @@ object ChromeCLIArgument {
     ForceColorProfile("srgb"),
     MetricsRecordingOnly,
     NoFirstRun,
-    SafebrowsingDisableAutoUpdate,
     EnableAutomation,
     PasswordStore("basic"),
-    UseMockKeychain
+    UseMockKeychain,
+    ExportTaggedPdf,
   ) ++ Set[ChromeCLIArgument](
     RemoteDebuggingPort(0)
   )

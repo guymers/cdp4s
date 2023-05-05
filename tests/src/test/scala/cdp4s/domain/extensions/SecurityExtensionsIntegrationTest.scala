@@ -14,6 +14,7 @@ import org.scalatest.freespec.AsyncFreeSpec
 
 trait SecurityExtensionsIntegrationTest { self: AsyncFreeSpec with InterpreterProvided =>
   import InterpreterProvided._
+  import cats.effect.unsafe.implicits.global
 
   "security" - {
     "does not ignore https errors" in {
