@@ -30,7 +30,7 @@ jobs:
         uses: coursier/cache-action@v6
 
       - name: Compile
-        run: sbt --client "++${{ matrix.scala }} Test/compile IntegrationTest/compile"
+        run: sbt --client "++${{ matrix.scala }} Test/compile"
 
       - name: Test
         run: sbt --client "++${{ matrix.scala }} testUnit"
