@@ -1,15 +1,11 @@
 package cdp4s.chrome.cli
 
-import java.io.InputStream
-import java.nio.file.Files
-import java.nio.file.Path
-import scala.concurrent.duration.*
 import cats.effect.kernel.Async
+import cats.effect.kernel.Deferred
 import cats.effect.kernel.Resource
+import cats.effect.kernel.Sync
 import cats.effect.syntax.spawn.*
 import cats.effect.syntax.temporal.*
-import cats.effect.kernel.Sync
-import cats.effect.kernel.Deferred
 import cats.syntax.either.*
 import cats.syntax.flatMap.*
 import cats.syntax.functor.*
@@ -19,6 +15,11 @@ import cdp4s.util.FileHelper
 import cdp4s.ws.WsUri
 import fs2.Stream
 
+import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import scala.concurrent.duration.*
+
 object ChromeLauncher {
 
   // DevTools listening on ws://127.0.0.1:33495/devtools/browser/3e350e57-ee17-4846-892a-cad6b03b6c92
@@ -27,32 +28,32 @@ object ChromeLauncher {
   private val PROCESS_START_TIMEOUT = 10.seconds
 
   /**
-    * Launch a headless chrome process located at the given path.
-    */
+   * Launch a headless chrome process located at the given path.
+   */
   @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
   def launchHeadless[F[_]](
     path: Path,
-    extraArgs: Set[ChromeCLIArgument] = Set.empty
+    extraArgs: Set[ChromeCLIArgument] = Set.empty,
   )(implicit F: Async[F]): Resource[F, ChromeInstance] = {
     val arguments = ChromeCLIArgument.defaultArguments ++ ChromeCLIArgument.headlessArguments ++ extraArgs
     launchWithArguments(path, arguments)
   }
 
   /**
-    * Launch a chrome process located at the given path.
-    */
+   * Launch a chrome process located at the given path.
+   */
   @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
   def launch[F[_]](
     path: Path,
-    extraArgs: Set[ChromeCLIArgument] = Set.empty
+    extraArgs: Set[ChromeCLIArgument] = Set.empty,
   )(implicit F: Async[F]): Resource[F, ChromeInstance] = {
     val arguments = ChromeCLIArgument.defaultArguments ++ extraArgs
     launchWithArguments(path, arguments)
   }
 
   /**
-    * Launch a chrome process located at the given path with the given arguments.
-    */
+   * Launch a chrome process located at the given path with the given arguments.
+   */
   def launchWithArguments[F[_]](
     path: Path,
     arguments: Set[ChromeCLIArgument],

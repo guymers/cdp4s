@@ -1,9 +1,9 @@
 package cdp4s.chrome.cli
 
-import java.nio.file.Path
-
 import cats.data.NonEmptyList
 import cats.syntax.foldable.*
+
+import java.nio.file.Path
 
 abstract class ChromeCLIArgument(val name: String, value: => Option[String]) extends Product with Serializable {
   val flag: String = name concat value.map(v => "=" concat v).getOrElse("")
@@ -16,6 +16,7 @@ abstract class ChromeCLIArgument(val name: String, value: => Option[String]) ext
 }
 
 object ChromeCLIArgument {
+  // format: off
   case object AllowPreCommitInput extends ChromeCLIArgument("--allow-pre-commit-input", None)
   case object DisableBackgroundNetworking extends ChromeCLIArgument("--disable-background-networking", None)
   case object DisableBackgroundTimerThrottling extends ChromeCLIArgument("--disable-background-timer-throttling", None)
@@ -26,10 +27,7 @@ object ChromeCLIArgument {
   case object DisableDefaultApps extends ChromeCLIArgument("--disable-default-apps", None)
   case object DisableDevShmUsage extends ChromeCLIArgument("--disable-dev-shm-usage", None)
   case object DisableExtensions extends ChromeCLIArgument("--disable-extensions", None)
-  final case class DisableFeatures(features: NonEmptyList[String]) extends ChromeCLIArgument(
-    "--disable-features",
-    Some(features.mkString_(","))
-  )
+  final case class DisableFeatures(features: NonEmptyList[String]) extends ChromeCLIArgument("--disable-features", Some(features.mkString_(",")))
   case object DisableHangMonitor extends ChromeCLIArgument("--disable-hang-monitor", None)
   case object DisableIpcFloodingProtection extends ChromeCLIArgument("--disable-ipc-flooding-protection", None)
   case object DisablePopupBlocking extends ChromeCLIArgument("--disable-popup-blocking", None)
@@ -37,10 +35,7 @@ object ChromeCLIArgument {
   case object DisableRendererBackgrounding extends ChromeCLIArgument("--disable-renderer-backgrounding", None)
   case object DisableSync extends ChromeCLIArgument("--disable-sync", None)
   case object EnableAutomation extends ChromeCLIArgument("--enable-automation", None)
-  final case class EnableFeatures(features: NonEmptyList[String]) extends ChromeCLIArgument(
-    "--enable-features",
-    Some(features.mkString_(","))
-  )
+  final case class EnableFeatures(features: NonEmptyList[String]) extends ChromeCLIArgument("--enable-features", Some(features.mkString_(",")))
   case object ExportTaggedPdf extends ChromeCLIArgument("--export-tagged-pdf", None)
   final case class ForceColorProfile(profile: String) extends ChromeCLIArgument("--force-color-profile", Some(profile))
   case object HideScrollbars extends ChromeCLIArgument("--hide-scrollbars", None)
@@ -53,6 +48,7 @@ object ChromeCLIArgument {
   final case class RemoteDebuggingPort(port: Int) extends ChromeCLIArgument("--remote-debugging-port", Some(port.toString))
   case object UseMockKeychain extends ChromeCLIArgument("--use-mock-keychain", None)
   final case class UserDataDir(directory: Path) extends ChromeCLIArgument("--user-data-dir", Some(directory.toFile.getAbsolutePath))
+  // format: on
 
   // use the same default and headless arguments as set by puppeteer
   // https://github.com/puppeteer/puppeteer/blob/v19.2.2/packages/puppeteer-core/src/node/ChromeLauncher.ts#L159
@@ -67,7 +63,12 @@ object ChromeCLIArgument {
     DisableDefaultApps,
     DisableDevShmUsage,
     DisableExtensions,
-    DisableFeatures(NonEmptyList.of("Translate", "BackForwardCache", "AcceptCHFrame", "AvoidUnnecessaryBeforeUnloadCheckSync")),
+    DisableFeatures(NonEmptyList.of(
+      "Translate",
+      "BackForwardCache",
+      "AcceptCHFrame",
+      "AvoidUnnecessaryBeforeUnloadCheckSync",
+    )),
     DisableHangMonitor,
     DisableIpcFloodingProtection,
     DisablePopupBlocking,
@@ -82,12 +83,12 @@ object ChromeCLIArgument {
     UseMockKeychain,
     ExportTaggedPdf,
   ) ++ Set[ChromeCLIArgument](
-    RemoteDebuggingPort(0)
+    RemoteDebuggingPort(0),
   )
 
   val headlessArguments: Set[ChromeCLIArgument] = Set(
     Headless,
     HideScrollbars,
-    MuteAudio
+    MuteAudio,
   )
 }

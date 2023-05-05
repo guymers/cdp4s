@@ -1,13 +1,14 @@
 package cpd4s.test
 
-import cdp4s.Runtime
-import java.nio.file.Path
 import cats.Parallel
 import cats.effect.Resource
 import cats.effect.kernel.Async
+import cdp4s.Runtime
 import cdp4s.chrome.cli.ChromeLauncher
 import cdp4s.chrome.interpreter.ChromeWebSocketClient
 import cdp4s.chrome.interpreter.ChromeWebSocketInterpreter
+
+import java.nio.file.Path
 
 object ChromeWebSocketInterpreterHelper {
 
@@ -27,8 +28,9 @@ object ChromeWebSocketInterpreterHelper {
       client <- ChromeWebSocketClient.connect[F](
         instance.devToolsWebSocket,
         ChromeWebSocketClient.Options(
-        requestQueueSize = WebSocketBufferCapacity,
-      ))
+          requestQueueSize = WebSocketBufferCapacity,
+        ),
+      )
       interpreter <- ChromeWebSocketInterpreter.create(client)
     } yield interpreter
   }

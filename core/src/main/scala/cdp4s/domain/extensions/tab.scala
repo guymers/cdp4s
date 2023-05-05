@@ -17,10 +17,11 @@ import cdp4s.domain.model.Target.TargetID
 object tab {
 
   /**
-    * Initialize a tab
-    *
-    * @see [[https://github.com/puppeteer/puppeteer/blob/v5.3.1/src/common/FrameManager.ts#L121 FrameManager.ts]]
-    */
+   * Initialize a tab
+   *
+   * @see
+   *   [[https://github.com/puppeteer/puppeteer/blob/v5.3.1/src/common/FrameManager.ts#L121 FrameManager.ts]]
+   */
   def initialize[F[_]](implicit F: Monad[F], P: NonEmptyParallel[F], op: Operation[F]): F[Unit] = for {
     _ <- op.page.enable
     _ <- (

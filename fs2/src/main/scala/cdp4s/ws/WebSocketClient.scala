@@ -1,6 +1,5 @@
 package cdp4s.ws
 
-import cdp4s.Runtime
 import cats.Monad
 import cats.effect.kernel.Async
 import cats.effect.kernel.Deferred
@@ -10,6 +9,7 @@ import cats.effect.syntax.spawn.*
 import cats.syntax.apply.*
 import cats.syntax.functor.*
 import cats.syntax.monadError.*
+import cdp4s.Runtime
 import cdp4s.chrome.WebSocketException
 import fs2.Stream
 

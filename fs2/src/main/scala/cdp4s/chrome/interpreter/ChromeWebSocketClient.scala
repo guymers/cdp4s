@@ -1,24 +1,21 @@
 package cdp4s.chrome.interpreter
 
-import cdp4s.Runtime
-import java.nio.charset.StandardCharsets
-import java.util.concurrent.atomic.AtomicLong
-import scala.util.Try
 import cats.Parallel
 import cats.effect.kernel.Async
 import cats.effect.kernel.Concurrent
-import cats.effect.kernel.Resource
 import cats.effect.kernel.Deferred
 import cats.effect.kernel.Ref
+import cats.effect.kernel.Resource
 import cats.effect.std.Queue
 import cats.syntax.either.*
 import cats.syntax.flatMap.*
 import cats.syntax.functor.*
 import cats.syntax.parallel.*
+import cdp4s.Runtime
 import cdp4s.chrome.ChromeEvent
-import cdp4s.chrome.WebSocketException
 import cdp4s.chrome.ChromeRequest
 import cdp4s.chrome.ChromeResponse
+import cdp4s.chrome.WebSocketException
 import cdp4s.domain.model.Target.SessionID
 import cdp4s.ws.WebSocketClient
 import cdp4s.ws.WsUri
@@ -26,6 +23,10 @@ import fs2.Stream
 import io.circe.Decoder
 import io.circe.JsonObject
 import io.circe.syntax.*
+
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.atomic.AtomicLong
+import scala.util.Try
 
 object ChromeWebSocketClient {
 
@@ -54,13 +55,21 @@ object ChromeWebSocketClient {
     new ChromeWebSocketClient[F] {
       override def messages: Stream[F, Message] = createHandler(ws, requestQ, responseCallbacks)
 
-      override def runCommand[T: Decoder](method: String, params: JsonObject, sessionId: Option[SessionID]): F[T] = for {
+      override def runCommand[T: Decoder](
+        method: String,
+        params: JsonObject,
+        sessionId: Option[SessionID],
+      ): F[T] = for {
         _shuttingDown <- shuttingDown.get
         _: Unit <- if (_shuttingDown) F.raiseError(new WebSocketException.ShuttingDown()) else F.unit
         result <- _runCommand(method, params, sessionId)
       } yield result
 
-      private def _runCommand[T: Decoder](method: String, params: JsonObject, sessionId: Option[SessionID]): F[T] = for {
+      private def _runCommand[T: Decoder](
+        method: String,
+        params: JsonObject,
+        sessionId: Option[SessionID],
+      ): F[T] = for {
         id <- F.delay { sequence.incrementAndGet() }
         callback <- Deferred.apply[F, JsonObject]
         _ <- responseCallbacks.update(_ + (id -> callback))
@@ -163,6 +172,6 @@ object ChromeWebSocketClient {
 
 trait ChromeWebSocketClient[F[_]] {
   def messages: Stream[F, ChromeWebSocketClient.Message]
-  def runCommand[T : Decoder](method: String, params: JsonObject, sessionId: Option[SessionID]): F[T]
+  def runCommand[T: Decoder](method: String, params: JsonObject, sessionId: Option[SessionID]): F[T]
   def shutdown: F[Unit]
 }
