@@ -4,7 +4,7 @@ import java.nio.file.Path
 
 import scala.concurrent.duration.FiniteDuration
 
-import cats.syntax.show._
+import cats.syntax.show.*
 import cdp4s.exception.CDP4sException
 
 sealed abstract class ProcessException(msg: String) extends CDP4sException(msg)

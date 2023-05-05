@@ -17,14 +17,14 @@ object ProtocolCodeGen {
 
   private val parser = new JawnParser
 
-  def generate(protocolJsonFile: File): Map[String, Seq[String]] = {
+  def generate(protocolJsonFile: File, scala3: Boolean = false): Map[String, Seq[String]] = {
 
     val result = parser.decodeFile[ChromeProtocol](protocolJsonFile)
     val protocol = result.toTry.get
 
     Map(
       "cdp4s/domain/All.scala" -> ModuleTemplate.create(protocol.domains).toLines,
-      "cdp4s/interpreter/WebSocketInterpreter.scala" -> WebSocketInterpreterTemplate.create(protocol.domains).toLines,
+      "cdp4s/interpreter/WebSocketInterpreter.scala" -> WebSocketInterpreterTemplate.create(protocol.domains)(scala3).toLines,
       "cdp4s/domain/event/events.scala" -> EventsTemplate.create(protocol.domains).toLines,
     ) ++
       protocol.domains.flatMap { domain =>

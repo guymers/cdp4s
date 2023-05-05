@@ -5,8 +5,10 @@ val catsVersion = "2.9.0"
 val catsEffectVersion = "3.4.10"
 val circeVersion = "0.14.5"
 val fs2Version = "3.6.1"
-val sttpVersion = "3.8.15"
 val scalaTestVersion = "3.2.15"
+
+val Scala213 = "2.13.10"
+val Scala3 = "3.2.2"
 
 inThisBuild(Seq(
   organization := "io.github.guymers",
@@ -18,74 +20,61 @@ inThisBuild(Seq(
   scmInfo := Some(ScmInfo(url("https://github.com/guymers/cdp4s"), "git@github.com:guymers/cdp4s.git")),
 ))
 
-val warnUnused = Seq(
-  "explicits",
-  "implicits",
-  "imports",
-  "locals",
-  "params",
-  "patvars",
-  "privates",
-)
-
-def filterScalacConsoleOpts(options: Seq[String]) = {
-  options.filterNot { opt =>
-    opt == "-Xfatal-warnings" ||
-    opt.startsWith("-Ywarn-") ||
-    opt.startsWith("-W")
-  }
-}
-
-val Scala212 = "2.12.17"
-val Scala213 = "2.13.10"
-
 lazy val commonSettings = Seq(
-  name := "cdp4s",
-  scalaVersion := Scala212,
-  crossScalaVersions := Seq(Scala212, Scala213),
+  scalaVersion := Scala213,
+  crossScalaVersions := Seq(Scala213, Scala3),
+  versionScheme := Some("pvp"),
 
-  // https://tpolecat.github.io/2017/04/25/scalac-flags.html
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",
-    "-explaintypes",
     "-feature",
-    "-language:existentials",
-    "-language:higherKinds",
-    "-language:implicitConversions",
     "-unchecked",
-    "-Xcheckinit",
-    //"-Xfatal-warnings",
   ),
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, minor)) if minor <= 12 => Seq(
-      "-Xfuture",
-      "-Xlint:_",
-      "-Yno-adapted-args",
-      "-Ypartial-unification",
-
-      "-Ywarn-dead-code",
-      "-Ywarn-extra-implicit",
-      "-Ywarn-infer-any",
-      "-Ywarn-nullary-override",
-      "-Ywarn-nullary-unit",
-      "-Ywarn-numeric-widen",
-      "-Ywarn-value-discard"
-    ) ++ warnUnused.map(o => s"-Ywarn-unused:$o")
-    case _ => Seq(
-      "-Xlint:_,-byname-implicit", // exclude byname-implicit https://github.com/scala/bug/issues/12072
+    case Some((2, _)) => Seq(
+      "-explaintypes",
+      "-language:existentials",
+      "-language:higherKinds",
+      "-Wconf:src=src_managed/.*&cat=deprecation:silent",
+      "-Xsource:3",
+    )
+    case Some((3, _)) => Seq(
+      "-explain",
+      "-explain-types",
+      "-no-indent",
+      "-source:future",
+      "-Wconf:cat=deprecation:silent", // cannot scope to a src
+      "-Xmax-inlines", "64",
+    )
+    case _ => Seq.empty
+  }),
+  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, minor)) if minor >= 13 => Seq(
+      "-Vimplicits",
+      "-Vtype-diffs",
       "-Wdead-code",
       "-Wextra-implicit",
+      "-Wnonunit-statement",
       "-Wnumeric-widen",
       "-Woctal-literal",
+      "-Wunused:_",
+      "-Wperformance",
       "-Wvalue-discard",
-    ) ++ warnUnused.map(o => s"-Wunused:$o")
+
+      "-Xlint:_,-byname-implicit", // exclude byname-implicit https://github.com/scala/bug/issues/12072
+    )
+    case _ => Seq.empty
   }),
 
   Compile / console / scalacOptions ~= filterScalacConsoleOpts,
   Test / console / scalacOptions ~= filterScalacConsoleOpts,
 
-  Compile / compile / wartremoverErrors := Warts.all,
+  Compile / compile / wartremoverErrors := (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, _)) => Warts.all
+    case Some((3, _)) => Seq.empty // ooms
+    case _ => Seq.empty
+  }),
   Compile / compile / wartremoverErrors --= Seq(
     Wart.Any,
     Wart.ArrayEquals,
@@ -100,12 +89,14 @@ lazy val commonSettings = Seq(
     Wart.Return,
   ),
 
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full),
-
-  addCompilerPlugin("com.github.ghik" % "silencer-plugin" % "1.7.12" cross CrossVersion.full),
-  libraryDependencies += "com.github.ghik" % "silencer-lib" % "1.7.12" % Provided cross CrossVersion.full,
-  scalacOptions += "-P:silencer:pathFilters=src_managed",
+  libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, _)) => Seq(
+      compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
+      compilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full),
+    )
+    case Some((3, _)) => Seq.empty
+    case _ => Seq.empty
+  }),
 
   fork := true,
   Test / fork := false,
@@ -113,6 +104,12 @@ lazy val commonSettings = Seq(
 
   Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oDF")
 )
+
+def filterScalacConsoleOpts(options: Seq[String]) = {
+  options.filterNot { opt =>
+    opt == "-Xfatal-warnings" || opt.startsWith("-Xlint") || opt.startsWith("-W")
+  }
+}
 
 lazy val cdp4s = project.in(file("."))
   .settings(commonSettings)
@@ -141,7 +138,8 @@ lazy val core = project.in(file("core"))
   .settings(Seq(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-core" % catsVersion,
-      "org.typelevel" %% "cats-effect" % catsEffectVersion,
+      "org.typelevel" %% "cats-effect-kernel" % catsEffectVersion,
+      "org.typelevel" %% "cats-effect" % catsEffectVersion % Optional,
 
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
@@ -150,8 +148,9 @@ lazy val core = project.in(file("core"))
     ),
 
     Compile / sourceGenerators += Def.task[Seq[File]] {
+      val scala3 = CrossVersion.partialVersion(scalaVersion.value).exists { case (v, _) => v == 3 }
       val dir = (Compile / sourceManaged).value.toPath
-      val generated = ProtocolCodeGen.generate(protocolJsonFile)
+      val generated = ProtocolCodeGen.generate(protocolJsonFile, scala3)
 
       val filesToWrite = generated.map { case (path, lines) => (dir.resolve(path), lines) }
       filesToWrite.keySet.map(_.getParent).foreach(p => Files.createDirectories(p))
@@ -170,6 +169,7 @@ lazy val fs2 = project.in(file("fs2"))
       "io.circe" %% "circe-generic" % circeVersion,
       "io.circe" %% "circe-parser" % circeVersion,
 
+      "co.fs2" %% "fs2-core" % fs2Version,
       "co.fs2" %% "fs2-io" % fs2Version,
     ),
   ))

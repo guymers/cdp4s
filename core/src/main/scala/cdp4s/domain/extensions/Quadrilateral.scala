@@ -1,6 +1,6 @@
 package cdp4s.domain.extensions
 
-import cats.syntax.traverse._
+import cats.syntax.traverse.*
 import cdp4s.domain.model.DOM
 
 final case class Quadrilateral(

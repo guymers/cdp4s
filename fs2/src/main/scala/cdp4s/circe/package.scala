@@ -3,7 +3,7 @@ package cdp4s
 import io.circe.Encoder
 import io.circe.Printer
 import io.circe.jawn.JawnParser
-import io.circe.syntax._
+import io.circe.syntax.*
 
 package object circe {
 

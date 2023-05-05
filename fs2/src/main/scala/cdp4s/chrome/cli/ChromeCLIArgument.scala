@@ -3,7 +3,7 @@ package cdp4s.chrome.cli
 import java.nio.file.Path
 
 import cats.data.NonEmptyList
-import cats.syntax.foldable._
+import cats.syntax.foldable.*
 
 abstract class ChromeCLIArgument(val name: String, value: => Option[String]) extends Product with Serializable {
   val flag: String = name concat value.map(v => "=" concat v).getOrElse("")

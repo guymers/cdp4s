@@ -2,7 +2,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.*
 
 object FileUtils {
 

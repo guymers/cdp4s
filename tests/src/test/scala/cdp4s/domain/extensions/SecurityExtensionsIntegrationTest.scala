@@ -3,7 +3,7 @@ package cdp4s.domain.extensions
 import java.net.URI
 
 import scala.annotation.tailrec
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 import cats.effect.IO
 import cdp4s.domain.Operation
@@ -12,8 +12,8 @@ import cdp4s.domain.model.DOM
 import cpd4s.test.InterpreterProvided
 import org.scalatest.freespec.AsyncFreeSpec
 
-trait SecurityExtensionsIntegrationTest { self: AsyncFreeSpec with InterpreterProvided =>
-  import InterpreterProvided._
+class SecurityExtensionsIntegrationTest extends AsyncFreeSpec with InterpreterProvided {
+  import InterpreterProvided.*
   import cats.effect.unsafe.implicits.global
 
   "security" - {

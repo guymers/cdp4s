@@ -1,6 +1,6 @@
 package cdp4s.chrome
 
-import cats.syntax.show._
+import cats.syntax.show.*
 import cdp4s.domain.event.Event
 import cdp4s.domain.model.Target.SessionID
 import io.circe.Decoder

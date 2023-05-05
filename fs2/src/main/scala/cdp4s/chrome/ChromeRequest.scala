@@ -3,7 +3,7 @@ package cdp4s.chrome
 import cdp4s.domain.model.Target.SessionID
 import io.circe.JsonObject
 import io.circe.Encoder
-import io.circe.syntax._
+import io.circe.syntax.*
 
 final case class ChromeRequest(
   id: Long,

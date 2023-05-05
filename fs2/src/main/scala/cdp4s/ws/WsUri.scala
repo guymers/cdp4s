@@ -1,7 +1,7 @@
 package cdp4s.ws
 
-import cats.syntax.either._
-import cats.syntax.show._
+import cats.syntax.either.*
+import cats.syntax.show.*
 import io.circe.Decoder
 
 import java.net.URI

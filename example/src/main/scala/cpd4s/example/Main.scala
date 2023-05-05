@@ -5,7 +5,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Instant
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import cats.NonEmptyParallel
 import cats.Parallel
 import cats.data.Kleisli
@@ -15,12 +15,12 @@ import cats.effect.IOApp
 import cats.effect.Resource
 import cats.effect.Sync
 import cats.effect.kernel.Async
-import cats.effect.syntax.temporal._
-import cats.syntax.applicativeError._
-import cats.syntax.either._
-import cats.syntax.flatMap._
-import cats.syntax.functor._
-import cats.syntax.show._
+import cats.effect.syntax.temporal.*
+import cats.syntax.applicativeError.*
+import cats.syntax.either.*
+import cats.syntax.flatMap.*
+import cats.syntax.functor.*
+import cats.syntax.show.*
 import cdp4s.domain.Operation
 import cdp4s.domain.handles.PageHandle
 import cpd4s.test.ChromeWebSocketInterpreterHelper
@@ -68,15 +68,19 @@ object Main extends IOApp {
     // FIXME make the below nicer
     Stream.resource(setup).flatMap { interpreter =>
       val programs = List(
-        Kleisli { implicit op: Operation[IO] => takeScreenshot[IO](new URI("https://news.ycombinator.com/news")) },
-        Kleisli { implicit op: Operation[IO] => takeScreenshot[IO](new URI("https://reddit.com")) },
-        Kleisli { implicit op: Operation[IO] => search[IO]("test") },
-        Kleisli { implicit op: Operation[IO] => search[IO]("example") },
+        Kleisli { (op: Operation[IO]) =>
+          takeScreenshot[IO](new URI("https://news.ycombinator.com/news"))(implicitly, implicitly, op)
+        },
+        Kleisli { (op: Operation[IO]) =>
+          takeScreenshot[IO](new URI("https://reddit.com"))(implicitly, implicitly, op)
+        },
+        Kleisli { (op: Operation[IO]) => search[IO]("test")(implicitly, implicitly, op) },
+        Kleisli { (op: Operation[IO]) => search[IO]("example")(implicitly, implicitly, op) },
       )
       val programStreams = Stream.emits {
         programs
           .map { k =>
-            Kleisli { op: Operation[IO] =>
+            Kleisli { (op: Operation[IO]) =>
               screenshotOnError(errorDir)(k.run(op))(implicitly, op)
             }
           }

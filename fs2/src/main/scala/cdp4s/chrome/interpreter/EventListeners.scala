@@ -3,8 +3,8 @@ package cdp4s.chrome.interpreter
 import cats.effect.kernel.Ref
 
 import java.util.concurrent.atomic.AtomicLong
-import cats.effect.Sync
-import cats.syntax.functor._
+import cats.effect.kernel.Sync
+import cats.syntax.functor.*
 import cdp4s.domain.model.Target.SessionID
 
 object EventListenersPerSession {

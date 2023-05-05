@@ -19,7 +19,7 @@ object ScalaChromeType {
   final case class Reference(domain: Option[String], ref: String, wrappers: List[ScalaChromeTypeWrapper]) extends ScalaChromeType
 
   def chromeTypeToScala(name: String, `type`: ChromeProtocolType): ScalaChromeType = {
-    import ChromeProtocolType._
+    import ChromeProtocolType.*
 
     @tailrec
     def go(tpe: ChromeProtocolType, wrappers: List[ScalaChromeTypeWrapper]): ScalaChromeType = {
