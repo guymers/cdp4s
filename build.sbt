@@ -114,7 +114,6 @@ lazy val commonSettings = Seq(
   Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oDF")
 )
 
-
 lazy val cdp4s = project.in(file("."))
   .settings(commonSettings)
   .settings(publish / skip := true)

@@ -33,9 +33,9 @@ jobs:
         run: sbt --client "++${{ matrix.scala }} Test/compile"
 
       - name: Test
-        run: sbt --client "++${{ matrix.scala }} testUnit"
+        run: sbt --client "++${{ matrix.scala }} modules/test"
 
       - name: Integration Test
         env:
           CHROME_PATH: /usr/bin/google-chrome
-        run: sbt --client "++${{ matrix.scala }} testIntegration"
+        run: sbt --client "++${{ matrix.scala }} integrationTests/test"

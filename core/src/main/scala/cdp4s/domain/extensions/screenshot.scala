@@ -10,7 +10,6 @@ import cats.effect.Sync
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.option._
-import cdp4s.domain.Operation
 
 object screenshot {
 
