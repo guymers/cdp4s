@@ -11,15 +11,15 @@ import protocol.util.StringUtils
 
 object InterpreterTemplate {
 
-  def create(domain: ChromeProtocolDomain): InterpreterTemplate = {
-    InterpreterTemplate(domain.domain, domain.commands)
+  def create(domain: ChromeProtocolDomain)(scala3: Boolean): InterpreterTemplate = {
+    InterpreterTemplate(domain.domain, domain.commands)(scala3)
   }
 }
 
 final case class InterpreterTemplate(
   domain: String,
   commands: NonEmptyVector[ChromeProtocolCommand],
-) {
+)(scala3: Boolean) {
   import StringUtils.escapeScalaVariable
 
   private implicit val ctx: ScalaChromeTypeContext = ScalaChromeTypeContext.defaultCtx(domain)
@@ -59,7 +59,7 @@ final case class InterpreterTemplate(
           "}",
           "",
         )
-        ("(decoder)", lines)
+        if (scala3) ("(using decoder)", lines) else ("(decoder)", lines)
 
       case _ =>
         ("", Vector.empty)

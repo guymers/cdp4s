@@ -5,16 +5,16 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicLong
 import scala.util.Try
 import cats.Parallel
-import cats.effect.Async
-import cats.effect.Concurrent
-import cats.effect.Resource
+import cats.effect.kernel.Async
+import cats.effect.kernel.Concurrent
+import cats.effect.kernel.Resource
 import cats.effect.kernel.Deferred
 import cats.effect.kernel.Ref
 import cats.effect.std.Queue
-import cats.syntax.either._
-import cats.syntax.flatMap._
-import cats.syntax.functor._
-import cats.syntax.parallel._
+import cats.syntax.either.*
+import cats.syntax.flatMap.*
+import cats.syntax.functor.*
+import cats.syntax.parallel.*
 import cdp4s.chrome.ChromeEvent
 import cdp4s.chrome.WebSocketException
 import cdp4s.chrome.ChromeRequest
@@ -25,7 +25,7 @@ import cdp4s.ws.WsUri
 import fs2.Stream
 import io.circe.Decoder
 import io.circe.JsonObject
-import io.circe.syntax._
+import io.circe.syntax.*
 
 object ChromeWebSocketClient {
 

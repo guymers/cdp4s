@@ -19,7 +19,7 @@ object InterpreterProvided {
 @SuppressWarnings(Array("org.wartremover.warts.Null"))
 trait InterpreterProvided extends BeforeAndAfterAll { self: Suite =>
   import cats.effect.unsafe.implicits.global
-  import InterpreterProvided._
+  import InterpreterProvided.*
 
   protected var interpreter: ChromeWebSocketInterpreter[IO] = _
   protected var release: IO[Unit] = _

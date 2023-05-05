@@ -6,10 +6,10 @@ import cats.effect.kernel.Async
 import cats.effect.kernel.Deferred
 import cats.effect.kernel.Resource
 import cats.effect.std.Queue
-import cats.effect.syntax.spawn._
-import cats.syntax.apply._
-import cats.syntax.functor._
-import cats.syntax.monadError._
+import cats.effect.syntax.spawn.*
+import cats.syntax.apply.*
+import cats.syntax.functor.*
+import cats.syntax.monadError.*
 import cdp4s.chrome.WebSocketException
 import fs2.Stream
 
@@ -23,7 +23,7 @@ import java.util.concurrent.CompletionStage
 import java.util.concurrent.Executor
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 @SuppressWarnings(Array("org.wartremover.warts.DefaultArguments"))
 trait WebSocketClient[F[_]] {

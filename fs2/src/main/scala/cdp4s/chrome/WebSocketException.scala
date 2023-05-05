@@ -1,11 +1,11 @@
 package cdp4s.chrome
 
-import cats.syntax.show._
+import cats.syntax.show.*
 import cdp4s.exception.CDP4sException
 import io.circe.DecodingFailure
 import io.circe.Json
 import io.circe.JsonObject
-import io.circe.syntax._
+import io.circe.syntax.*
 
 sealed abstract class WebSocketException(msg: String) extends CDP4sException(msg)
 

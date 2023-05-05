@@ -21,7 +21,7 @@ object TypeTemplate {
   }
 
   def create(typeDesc: ChromeProtocolTypeDescription): Option[TypeTemplate] = {
-    import ChromeProtocolType._
+    import ChromeProtocolType.*
 
     typeDesc.`type` match {
       case any(_) | binary(_) | string(_) | integer(_) | number(_) | boolean(_) | array(_, _) => Some {

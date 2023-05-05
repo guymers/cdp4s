@@ -4,11 +4,11 @@ import cats.Applicative
 import cats.Functor
 import cats.Monad
 import cats.NonEmptyParallel
-import cats.effect.Resource
-import cats.syntax.flatMap._
-import cats.syntax.functor._
-import cats.syntax.option._
-import cats.syntax.parallel._
+import cats.effect.kernel.Resource
+import cats.syntax.flatMap.*
+import cats.syntax.functor.*
+import cats.syntax.option.*
+import cats.syntax.parallel.*
 import cdp4s.domain.Operation
 import cdp4s.domain.model.Browser.BrowserContextID
 import cdp4s.domain.model.Target.SessionID
@@ -22,8 +22,8 @@ object tab {
     * @see [[https://github.com/puppeteer/puppeteer/blob/v5.3.1/src/common/FrameManager.ts#L121 FrameManager.ts]]
     */
   def initialize[F[_]](implicit F: Monad[F], P: NonEmptyParallel[F], op: Operation[F]): F[Unit] = for {
-    _: Unit <- op.page.enable
-    (_: Unit, _: Unit, _: Unit) <- (
+    _ <- op.page.enable
+    _ <- (
       op.page.setLifecycleEventsEnabled(enabled = true),
       op.runtime.enable,
       op.network.enable(),

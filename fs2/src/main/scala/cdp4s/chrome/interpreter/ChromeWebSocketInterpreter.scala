@@ -1,16 +1,16 @@
 package cdp4s.chrome.interpreter
 
 import cats.NonEmptyParallel
-import cats.effect.Concurrent
-import cats.effect.Resource
+import cats.effect.kernel.Concurrent
+import cats.effect.kernel.Resource
 import cats.effect.kernel.Async
 import cats.effect.kernel.Deferred
-import cats.effect.syntax.spawn._
-import cats.effect.syntax.monadCancel._
-import cats.syntax.applicativeError._
-import cats.syntax.flatMap._
-import cats.syntax.functor._
-import cats.syntax.traverse._
+import cats.effect.syntax.spawn.*
+import cats.effect.syntax.monadCancel.*
+import cats.syntax.applicativeError.*
+import cats.syntax.flatMap.*
+import cats.syntax.functor.*
+import cats.syntax.traverse.*
 import cdp4s.chrome.ChromeEvent
 import cdp4s.chrome.interpreter.ChromeWebSocketClient.Message
 import cdp4s.domain.Events

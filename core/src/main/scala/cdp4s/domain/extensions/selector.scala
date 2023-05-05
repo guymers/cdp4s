@@ -1,16 +1,16 @@
 package cdp4s.domain.extensions
 
 import cats.MonadError
-import cats.syntax.alternative._
-import cats.syntax.applicativeError._
-import cats.syntax.either._
-import cats.syntax.flatMap._
-import cats.syntax.functor._
-import cats.syntax.traverse._
+import cats.syntax.alternative.*
+import cats.syntax.applicativeError.*
+import cats.syntax.either.*
+import cats.syntax.flatMap.*
+import cats.syntax.functor.*
+import cats.syntax.traverse.*
 import cdp4s.domain.Operation
 import cdp4s.domain.handles.ElementHandle
 import cdp4s.domain.model.Runtime
-import io.circe.syntax._
+import io.circe.syntax.*
 
 object selector {
 
@@ -47,7 +47,7 @@ object selector {
       if (remoteObject.subtype.contains(Runtime.RemoteObject.Subtype.node)) {
         F.pure { Option(ElementHandle(executionContextId, remoteObject)) }
       } else {
-        releaseObject(remoteObject).map((_: Unit) => None: Option[ElementHandle])
+        releaseObject(remoteObject).map(_ => None: Option[ElementHandle])
       }
     }
   } yield elementHandle

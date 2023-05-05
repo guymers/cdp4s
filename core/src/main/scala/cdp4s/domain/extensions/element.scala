@@ -2,13 +2,13 @@ package cdp4s.domain.extensions
 
 import cats.Monad
 import cats.MonadError
-import cats.syntax.applicativeError._
-import cats.syntax.flatMap._
-import cats.syntax.functor._
+import cats.syntax.applicativeError.*
+import cats.syntax.flatMap.*
+import cats.syntax.functor.*
 import cdp4s.domain.Operation
 import cdp4s.domain.handles.ElementHandle
 import cdp4s.domain.model.Runtime
-import io.circe.syntax._
+import io.circe.syntax.*
 
 object element {
 

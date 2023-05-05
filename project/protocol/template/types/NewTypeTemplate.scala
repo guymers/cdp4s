@@ -37,10 +37,10 @@ final case class NewTypeTemplate(
       Line(""),
       Line(s"object $safeName {"),
       Vector(
-        "import io.circe.syntax._",
+        "import _root_.io.circe.syntax.EncoderOps",
         "",
-        s"implicit val decoder: io.circe.Decoder[$safeName] = io.circe.Decoder[$typeStr].map($safeName.apply)",
-        s"implicit val encoder: io.circe.Encoder[$safeName] = io.circe.Encoder.instance(_.value.asJson)",
+        s"implicit val decoder: _root_.io.circe.Decoder[$safeName] = _root_.io.circe.Decoder[$typeStr].map($safeName.apply)",
+        s"implicit val encoder: _root_.io.circe.Encoder[$safeName] = _root_.io.circe.Encoder.instance(_.value.asJson)",
       ).indent(1),
       Line("}"),
     )

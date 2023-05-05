@@ -1,9 +1,9 @@
 package cdp4s.domain.extensions
 
 import cats.MonadError
-import cats.syntax.flatMap._
-import cats.syntax.functor._
-import cats.syntax.show._
+import cats.syntax.flatMap.*
+import cats.syntax.functor.*
+import cats.syntax.show.*
 import cdp4s.domain.Operation
 import cdp4s.domain.model.Runtime
 import cdp4s.domain.model.Runtime.ExceptionDetails
