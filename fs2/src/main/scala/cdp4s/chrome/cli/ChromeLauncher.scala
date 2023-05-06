@@ -7,6 +7,7 @@ import cats.effect.kernel.Sync
 import cats.effect.syntax.spawn.*
 import cats.effect.syntax.temporal.*
 import cats.syntax.either.*
+import cats.syntax.eq.*
 import cats.syntax.flatMap.*
 import cats.syntax.functor.*
 import cats.syntax.option.*
@@ -167,7 +168,7 @@ object ChromeLauncher {
       forceClose interruptWhen hasClosed
     } >> {
       val exitValue = process.exitValue()
-      if (exitValue == 0) Stream.empty
+      if (exitValue === 0) Stream.empty
       else Stream.raiseError(new ProcessException.Exit(exitValue))
     }
     s.compile.drain

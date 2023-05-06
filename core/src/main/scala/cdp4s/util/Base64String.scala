@@ -5,7 +5,12 @@ import io.circe.Encoder
 
 import java.nio.charset.StandardCharsets
 
-case class Base64String(value: Array[Byte])
+final case class Base64String(value: Array[Byte]) {
+  override def equals(obj: Any): Boolean = obj match {
+    case v: Base64String => value.sameElements(v.value)
+    case _ => false
+  }
+}
 object Base64String {
 
   implicit val decoder: Decoder[Base64String] = Decoder[String].emap { str =>

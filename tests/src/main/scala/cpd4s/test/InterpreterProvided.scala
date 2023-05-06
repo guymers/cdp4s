@@ -33,9 +33,7 @@ trait InterpreterProvided extends BeforeAndAfterAll { self: Suite =>
   }
 
   override protected def afterAll(): Unit = {
-    if (release != null) {
-      release.unsafeRunSync()
-    }
+    Option(release).foreach(_.unsafeRunSync())
     super.afterAll()
   }
 }

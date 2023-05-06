@@ -79,16 +79,12 @@ lazy val commonSettings = Seq(
   }),
   Compile / compile / wartremoverErrors --= Seq(
     Wart.Any,
-    Wart.ArrayEquals,
-    Wart.Equals,
-    Wart.FinalCaseClass,
-    Wart.ImplicitParameter,
     Wart.Nothing,
   ),
-  Test / compile / wartremoverErrors := Seq(
-    Wart.NonUnitStatements,
-    Wart.Null,
-    Wart.Return,
+  Test / compile / wartremoverErrors := (Compile / compile / wartremoverErrors).value,
+  Test / compile / wartremoverErrors --= Seq(
+    Wart.Equals,
+    Wart.ImplicitParameter,
   ),
 
   libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
