@@ -237,9 +237,24 @@ object WebSocketClient {
     case object Open extends WebSocketListenerMessage
 
     final case class Text(data: String) extends WebSocketListenerMessage
-    final case class Binary(data: Array[Byte]) extends WebSocketListenerMessage
-    final case class Ping(data: Array[Byte]) extends WebSocketListenerMessage
-    final case class Pong(data: Array[Byte]) extends WebSocketListenerMessage
+    final case class Binary(data: Array[Byte]) extends WebSocketListenerMessage {
+      override def equals(obj: Any): Boolean = obj match {
+        case v: Binary => data.sameElements(v.data)
+        case _ => false
+      }
+    }
+    final case class Ping(data: Array[Byte]) extends WebSocketListenerMessage {
+      override def equals(obj: Any): Boolean = obj match {
+        case v: Ping => data.sameElements(v.data)
+        case _ => false
+      }
+    }
+    final case class Pong(data: Array[Byte]) extends WebSocketListenerMessage {
+      override def equals(obj: Any): Boolean = obj match {
+        case v: Pong => data.sameElements(v.data)
+        case _ => false
+      }
+    }
 
     final case class Close(statusCode: Int, reason: String) extends WebSocketListenerMessage
     final case class Error(error: Throwable) extends WebSocketListenerMessage
@@ -248,6 +263,11 @@ object WebSocketClient {
   sealed trait Data
   object Data {
     final case class Text(data: String) extends Data
-    final case class Binary(data: Array[Byte]) extends Data
+    final case class Binary(data: Array[Byte]) extends Data {
+      override def equals(obj: Any): Boolean = obj match {
+        case v: Binary => data.sameElements(v.data)
+        case _ => false
+      }
+    }
   }
 }

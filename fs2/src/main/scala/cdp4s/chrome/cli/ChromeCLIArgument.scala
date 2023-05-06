@@ -1,6 +1,7 @@
 package cdp4s.chrome.cli
 
 import cats.data.NonEmptyList
+import cats.syntax.eq.*
 import cats.syntax.foldable.*
 
 import java.nio.file.Path
@@ -10,7 +11,7 @@ abstract class ChromeCLIArgument(val name: String, value: => Option[String]) ext
 
   override val hashCode: Int = name.hashCode
   override def equals(o: Any): Boolean = o match {
-    case a: ChromeCLIArgument => a.name == this.name
+    case a: ChromeCLIArgument => a.name === this.name
     case _ => false
   }
 }

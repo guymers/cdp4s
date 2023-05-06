@@ -22,6 +22,7 @@ object element {
   } yield ()
 
   // from https://github.com/GoogleChrome/puppeteer/blob/v1.13.0/lib/JSHandle.js#L162
+  @SuppressWarnings(Array("org.wartremover.warts.Equals"))
   def scrollIntoViewIfNeeded[F[_]](
     element: ElementHandle,
   )(implicit F: MonadError[F, Throwable], op: Operation[F]): F[Unit] = {
